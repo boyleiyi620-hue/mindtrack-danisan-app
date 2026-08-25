@@ -1,28 +1,33 @@
-import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
+
 import 'firebase_options.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  } catch (e) {
-    debugPrint('Firebase init error: $e');
+  } catch (error) {
+    debugPrint('Firebase init error: $error');
   }
   runApp(const MindTrackClientApp());
 }
 
 class MindTrackClientApp extends StatelessWidget {
   const MindTrackClientApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'MindTrack Danışan',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal, primary: Colors.teal),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.teal,
+          primary: Colors.teal,
+        ),
         useMaterial3: true,
         fontFamily: 'Roboto',
       ),
@@ -33,12 +38,15 @@ class MindTrackClientApp extends StatelessWidget {
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
         if (!snapshot.hasData) return const LoginScreen();
         return const ClientShell();
       },
@@ -48,6 +56,7 @@ class AuthGate extends StatelessWidget {
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -55,48 +64,130 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _email = TextEditingController();
   final _pass = TextEditingController();
+  final _name = TextEditingController();
   bool _isReg = false;
   bool _loading = false;
 
+  @override
+  void dispose() {
+    _email.dispose();
+    _pass.dispose();
+    _name.dispose();
+    super.dispose();
+  }
+
   Future<void> _submit() async {
-    if (_email.text.isEmpty || _pass.text.isEmpty) return;
+    if (_email.text.trim().isEmpty || _pass.text.isEmpty) return;
+    if (_isReg && _name.text.trim().isEmpty) {
+      _showError('Ad soyad alanı gereklidir.');
+      return;
+    }
     setState(() => _loading = true);
     try {
+      UserCredential credential;
       if (_isReg) {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(email: _email.text.trim(), password: _pass.text);
+        credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: _email.text.trim(),
+          password: _pass.text,
+        );
+        await credential.user?.updateDisplayName(_name.text.trim());
       } else {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(email: _email.text.trim(), password: _pass.text);
+        credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _email.text.trim(),
+          password: _pass.text,
+        );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+      final uid = credential.user?.uid;
+      if (uid != null) {
+        final displayName = _isReg
+            ? _name.text.trim()
+            : (credential.user?.displayName?.trim() ?? '');
+        await FirebaseFirestore.instance.collection('patients').doc(uid).set({
+          if (displayName.isNotEmpty) 'displayName': displayName,
+          'email': _email.text.trim(),
+        }, SetOptions(merge: true));
+      }
+    } catch (error) {
+      _showError('Hata: $error');
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
-    setState(() => _loading = false);
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.favorite, size: 80, color: Colors.teal),
-            const SizedBox(height: 16),
-            const Text('MindTrack Danışan', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 32),
-            TextField(controller: _email, decoration: const InputDecoration(labelText: 'E-posta', border: OutlineInputBorder())),
-            const SizedBox(height: 16),
-            TextField(controller: _pass, decoration: const InputDecoration(labelText: 'Şifre', border: OutlineInputBorder()), obscureText: true),
-            const SizedBox(height: 24),
-            if (_loading) const CircularProgressIndicator()
-            else ElevatedButton(
-              onPressed: _submit, 
-              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50), backgroundColor: Colors.teal, foregroundColor: Colors.white),
-              child: Text(_isReg ? 'Kayıt Ol' : 'Giriş Yap')
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.favorite, size: 80, color: Colors.teal),
+                const SizedBox(height: 16),
+                const Text(
+                  'MindTrack Danışan',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 32),
+                if (_isReg) ...[
+                  TextField(
+                    controller: _name,
+                    decoration: const InputDecoration(
+                      labelText: 'Ad Soyad',
+                      border: OutlineInputBorder(),
+                    ),
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                TextField(
+                  controller: _email,
+                  decoration: const InputDecoration(
+                    labelText: 'E-posta',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _pass,
+                  decoration: const InputDecoration(
+                    labelText: 'Şifre',
+                    border: OutlineInputBorder(),
+                  ),
+                  obscureText: true,
+                  onSubmitted: (_) => _submit(),
+                ),
+                const SizedBox(height: 24),
+                if (_loading)
+                  const CircularProgressIndicator()
+                else
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _submit,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
+                        backgroundColor: Colors.teal,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: Text(_isReg ? 'Kayıt Ol' : 'Giriş Yap'),
+                    ),
+                  ),
+                TextButton(
+                  onPressed: () => setState(() => _isReg = !_isReg),
+                  child: Text(_isReg ? 'Giriş Yap' : 'Kayıt Ol'),
+                ),
+              ],
             ),
-            TextButton(onPressed: () => setState(() => _isReg = !_isReg), child: Text(_isReg ? 'Giriş Yap' : 'Kayıt Ol')),
-          ],
+          ),
         ),
       ),
     );
@@ -105,6 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
 class ClientShell extends StatefulWidget {
   const ClientShell({super.key});
+
   @override
   State<ClientShell> createState() => _ClientShellState();
 }
@@ -112,29 +204,60 @@ class ClientShell extends StatefulWidget {
 class _ClientShellState extends State<ClientShell> {
   int _idx = 0;
 
+  void selectTab(int index) => setState(() => _idx = index);
+
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    return StreamBuilder<DocumentSnapshot>(
+    if (uid == null) return const LoginScreen();
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('patients').doc(uid).snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-        final data = snapshot.data?.data() as Map<String, dynamic>?;
-        if (data?['consented'] != true) return ConsentScreen(onDone: () {});
-        if (data?['psychologistId'] == null) return const PairingScreen();
+        if (!snapshot.hasData) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        final patient = snapshot.data?.data() ?? <String, dynamic>{};
+        if (patient['consented'] != true) return const ConsentScreen();
+        final psychologistId = patient['psychologistId']?.toString();
+        if (psychologistId == null || psychologistId.isEmpty) {
+          return const PairingScreen();
+        }
 
-        final pages = [const ClientOverview(), const ClientHomeworks(), const ClientProfile()];
+        final pages = [
+          ClientOverview(patient: patient, psychologistId: psychologistId),
+          ClientAppointments(patient: patient, psychologistId: psychologistId),
+          ClientHomeworks(patient: patient, psychologistId: psychologistId),
+          ClientProfile(patient: patient),
+        ];
+        final safeIndex = _idx.clamp(0, pages.length - 1);
 
         return Scaffold(
-          body: pages[_idx],
-          bottomNavigationBar: BottomNavigationBar(
-            currentIndex: _idx,
-            onTap: (i) => setState(() => _idx = i),
-            selectedItemColor: Colors.teal,
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Ana Sayfa'),
-              BottomNavigationBarItem(icon: Icon(Icons.assignment), label: 'Formlar'),
-              BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
+          body: pages[safeIndex],
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: safeIndex,
+            onDestinationSelected: (index) => setState(() => _idx = index),
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: 'Ana Sayfa',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.calendar_month_outlined),
+                selectedIcon: Icon(Icons.calendar_month),
+                label: 'Randevu',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.assignment_outlined),
+                selectedIcon: Icon(Icons.assignment),
+                label: 'Formlar',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline),
+                selectedIcon: Icon(Icons.person),
+                label: 'Profil',
+              ),
             ],
           ),
         );
@@ -144,33 +267,79 @@ class _ClientShellState extends State<ClientShell> {
 }
 
 class ConsentScreen extends StatefulWidget {
-  final VoidCallback onDone;
-  const ConsentScreen({required this.onDone, super.key});
+  const ConsentScreen({super.key});
+
   @override
   State<ConsentScreen> createState() => _ConsentScreenState();
 }
 
 class _ConsentScreenState extends State<ConsentScreen> {
   bool _agreed = false;
+  bool _saving = false;
+
+  Future<void> _continue() async {
+    if (!_agreed) return;
+    setState(() => _saving = true);
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        await FirebaseFirestore.instance.collection('patients').doc(uid).set({
+          'consented': true,
+          'email': FirebaseAuth.instance.currentUser?.email ?? '',
+        }, SetOptions(merge: true));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Onam')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const Expanded(child: SingleChildScrollView(child: Text('Psikolojik Danışmanlık Süreci Onam Formu...'))),
-            CheckboxListTile(value: _agreed, onChanged: (v) => setState(() => _agreed = v!), title: const Text('Okudum, onaylıyorum')),
-            ElevatedButton(
-              onPressed: _agreed ? () async {
-                final uid = FirebaseAuth.instance.currentUser?.uid;
-                await FirebaseFirestore.instance.collection('patients').doc(uid).set({'consented': true}, SetOptions(merge: true));
-              } : null, 
-              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50), backgroundColor: Colors.teal, foregroundColor: Colors.white),
-              child: const Text('Devam Et')
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                const Expanded(
+                  child: SingleChildScrollView(
+                    child: Text(
+                      'Psikolojik Danışmanlık Süreci Onam Formu\n\n'
+                      'Bu metin, psikolojik danışmanlık sürecine ilişkin bilgilendirme ve onam metnidir. '
+                      'Süreç boyunca paylaştığınız bilgilerin doğru ve güncel olmasına dikkat ediniz. '
+                      'Acil durumlarda ilgili acil yardım servislerine başvurunuz.',
+                    ),
+                  ),
+                ),
+                CheckboxListTile(
+                  value: _agreed,
+                  onChanged: (value) => setState(() => _agreed = value ?? false),
+                  title: const Text('Okudum, onaylıyorum'),
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _agreed && !_saving ? _continue : null,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      backgroundColor: Colors.teal,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: _saving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Devam Et'),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -179,6 +348,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
 
 class PairingScreen extends StatefulWidget {
   const PairingScreen({super.key});
+
   @override
   State<PairingScreen> createState() => _PairingScreenState();
 }
@@ -187,43 +357,88 @@ class _PairingScreenState extends State<PairingScreen> {
   final _code = TextEditingController();
   bool _loading = false;
 
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
+  }
+
   Future<void> _pair() async {
+    final code = _code.text.trim();
+    if (code.isEmpty) return;
     setState(() => _loading = true);
     try {
-      final snap = await FirebaseFirestore.instance.collection('pairingCodes').doc(_code.text.trim()).get();
+      final snap = await FirebaseFirestore.instance
+          .collection('pairingCodes')
+          .doc(code)
+          .get();
       if (!snap.exists) throw 'Geçersiz kod.';
-      
-      final psyId = snap.data()?['psychologistId'];
-      final localId = snap.data()?['clientId'];
+
+      final data = snap.data() ?? <String, dynamic>{};
+      final psychologistId = data['psychologistId']?.toString();
+      final localClientId = data['clientId']?.toString();
       final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null || psychologistId == null || psychologistId.isEmpty) {
+        throw 'Eşleşme bilgisi eksik.';
+      }
 
       await FirebaseFirestore.instance.collection('patients').doc(uid).set({
-        'psychologistId': psyId,
-        'localClientId': localId,
+        'psychologistId': psychologistId,
+        ...?(localClientId == null ? null : {'localClientId': localClientId}),
       }, SetOptions(merge: true));
-      
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Eşleşme Başarılı!')));
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Eşleşme Başarılı!')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Hata: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
-    setState(() => _loading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Eşleşme')),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            const Text('Psikoloğunuzun verdiği kodu girin:'),
-            const SizedBox(height: 16),
-            TextField(controller: _code, textAlign: TextAlign.center, style: const TextStyle(fontSize: 24, letterSpacing: 4)),
-            const SizedBox(height: 24),
-            if (_loading) const CircularProgressIndicator()
-            else ElevatedButton(onPressed: _pair, child: const Text('Eşleşmeyi Tamamla')),
-          ],
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.link, size: 60, color: Colors.teal),
+                const SizedBox(height: 16),
+                const Text(
+                  'Psikoloğunuzun verdiği kodu girin:',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _code,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 24, letterSpacing: 4),
+                  textCapitalization: TextCapitalization.characters,
+                ),
+                const SizedBox(height: 24),
+                if (_loading)
+                  const CircularProgressIndicator()
+                else
+                  ElevatedButton(
+                    onPressed: _pair,
+                    child: const Text('Eşleşmeyi Tamamla'),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -231,47 +446,386 @@ class _PairingScreenState extends State<PairingScreen> {
 }
 
 class ClientOverview extends StatelessWidget {
-  const ClientOverview({super.key});
+  const ClientOverview({super.key, required this.patient, required this.psychologistId});
+
+  final Map<String, dynamic> patient;
+  final String psychologistId;
+
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: Text('MindTrack Danışan Uygulaması')));
+    final name = _patientName(patient);
+    return Scaffold(
+      appBar: AppBar(title: const Text('MindTrack Danışan')),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text(
+            'Merhaba, $name',
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Danışmanlık sürecinizi, formlarınızı ve randevularınızı buradan takip edebilirsiniz.',
+            style: TextStyle(color: Colors.black54),
+          ),
+          const SizedBox(height: 24),
+          Card(
+            child: ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFFE0F2F1),
+                child: Icon(Icons.calendar_month, color: Colors.teal),
+              ),
+              title: const Text('Randevu'),
+              subtitle: const Text('Yeni randevu talebi gönderin ve durumunu takip edin.'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _selectTab(context, 1),
+            ),
+          ),
+          Card(
+            child: ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFFE0F2F1),
+                child: Icon(Icons.assignment, color: Colors.teal),
+              ),
+              title: const Text('Formlar ve Ödevler'),
+              subtitle: const Text('Psikoloğunuzun gönderdiği formları doldurun.'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _selectTab(context, 2),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _selectTab(BuildContext context, int index) {
+    final shell = context.findAncestorStateOfType<_ClientShellState>();
+    shell?.selectTab(index);
+  }
+}
+
+class ClientAppointments extends StatelessWidget {
+  const ClientAppointments({super.key, required this.patient, required this.psychologistId});
+
+  final Map<String, dynamic> patient;
+  final String psychologistId;
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const SizedBox.shrink();
+    final stream = FirebaseFirestore.instance
+        .collection('psychologists')
+        .doc(psychologistId)
+        .collection('appointments')
+        .where('clientFirebaseUid', isEqualTo: uid)
+        .snapshots();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Randevu'),
+        actions: [
+          IconButton(
+            tooltip: 'Randevu Talebi',
+            onPressed: () => _openRequestDialog(context),
+            icon: const Icon(Icons.add),
+          ),
+        ],
+      ),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: stream,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Randevular yüklenemedi: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final docs = [...snapshot.data!.docs]
+            ..sort((a, b) => _appointmentDate(a.data()).compareTo(_appointmentDate(b.data())));
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              FilledButton.icon(
+                onPressed: () => _openRequestDialog(context),
+                icon: const Icon(Icons.event_available),
+                label: const Text('Randevu Talebi Gönder'),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Randevularınız',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              if (docs.isEmpty)
+                const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text('Henüz randevunuz veya bekleyen talebiniz bulunmuyor.'),
+                  ),
+                )
+              else
+                for (final doc in docs) _appointmentCard(context, doc),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _appointmentCard(BuildContext context, DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? <String, dynamic>{};
+    final date = _appointmentDate(data);
+    final status = data['status']?.toString() ?? 'pending';
+    final statusLabel = _appointmentStatusLabel(status);
+    final isPending = status == 'pending';
+    final color = status == 'approved' || status == 'planned'
+        ? Colors.green
+        : status == 'rejected' || status == 'cancelled'
+            ? Colors.grey
+            : Colors.orange;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: color.withValues(alpha: .12),
+          child: Icon(Icons.calendar_month, color: color),
+        ),
+        title: Text(_formatDateTime(date)),
+        subtitle: Text('Durum: $statusLabel'),
+        trailing: isPending
+            ? TextButton(
+                onPressed: () => _cancelRequest(context, doc.reference),
+                child: const Text('Randevuyu İptal Et'),
+              )
+            : null,
+      ),
+    );
+  }
+
+  Future<void> _openRequestDialog(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => AppointmentRequestDialog(onSubmit: _createRequest),
+    );
+    if (result == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Randevu talebi gönderildi. Psikolog onayı bekleniyor.')),
+      );
+    }
+  }
+
+  Future<void> _createRequest(DateTime selectedDateTime) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) throw 'Oturum bulunamadı.';
+    if (selectedDateTime.isBefore(DateTime.now())) {
+      throw 'Geçmiş bir tarih veya saat seçilemez.';
+    }
+
+    final identity = _requestIdentity(patient);
+    await FirebaseFirestore.instance
+        .collection('psychologists')
+        .doc(psychologistId)
+        .collection('appointments')
+        .add({
+      'clientFirebaseUid': uid,
+      'clientName': identity.name,
+      'clientFirstName': identity.firstName,
+      'clientLastName': identity.lastName,
+      'clientEmail': identity.email,
+      'date': Timestamp.fromDate(selectedDateTime),
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+      'type': 'request',
+    });
+  }
+
+  Future<void> _cancelRequest(BuildContext context, DocumentReference<Map<String, dynamic>> ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Randevu talebini iptal et'),
+        content: const Text('Bu randevu talebini iptal etmek istediğinize emin misiniz?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Evet, İptal Et'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await ref.update({'status': 'cancelled'});
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Talep iptal edildi.')),
+        );
+      }
+    }
+  }
+}
+
+class AppointmentRequestDialog extends StatefulWidget {
+  const AppointmentRequestDialog({super.key, required this.onSubmit});
+
+  final Future<void> Function(DateTime dateTime) onSubmit;
+
+  @override
+  State<AppointmentRequestDialog> createState() => _AppointmentRequestDialogState();
+}
+
+class _AppointmentRequestDialogState extends State<AppointmentRequestDialog> {
+  late DateTime _date;
+  TimeOfDay _time = const TimeOfDay(hour: 10, minute: 0);
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _date = DateTime(now.year, now.month, now.day + 1);
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null) setState(() => _date = picked);
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(context: context, initialTime: _time);
+    if (picked != null) setState(() => _time = picked);
+  }
+
+  Future<void> _submit() async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await widget.onSubmit(DateTime(
+        _date.year,
+        _date.month,
+        _date.day,
+        _time.hour,
+        _time.minute,
+      ));
+      if (mounted) Navigator.pop(context, true);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Randevu Talebi'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Psikoloğunuz için uygun tarih ve saati seçin.'),
+            const SizedBox(height: 18),
+            OutlinedButton.icon(
+              onPressed: _pickDate,
+              icon: const Icon(Icons.calendar_month),
+              label: Text('Tarih: ${_formatDate(_date)}'),
+            ),
+            OutlinedButton.icon(
+              onPressed: _pickTime,
+              icon: const Icon(Icons.schedule),
+              label: Text('Saat: ${_time.format(context)}'),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(_error!, style: const TextStyle(color: Colors.red)),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context, false),
+          child: const Text('Vazgeç'),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _submit,
+          child: _saving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Randevu Talebi Gönder'),
+        ),
+      ],
+    );
   }
 }
 
 class ClientHomeworks extends StatelessWidget {
-  const ClientHomeworks({super.key});
+  const ClientHomeworks({super.key, required this.patient, required this.psychologistId});
+
+  final Map<String, dynamic> patient;
+  final String psychologistId;
+
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const SizedBox.shrink();
     return Scaffold(
       appBar: AppBar(title: const Text('Formlar ve Ödevler')),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('patients').doc(uid).snapshots(),
-        builder: (context, pSnap) {
-          if (!pSnap.hasData) return const Center(child: CircularProgressIndicator());
-          final psyId = pSnap.data?.get('psychologistId');
-          if (psyId == null) return const Center(child: Text('Eşleşme yok.'));
-
-          return StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('psychologists').doc(psyId).collection('tasks')
-                .where('clientFirebaseUid', isEqualTo: uid).snapshots(),
-            builder: (context, tSnap) {
-              if (!tSnap.hasData) return const Center(child: CircularProgressIndicator());
-              final docs = tSnap.data!.docs;
-              return ListView.builder(
-                itemCount: docs.length,
-                itemBuilder: (context, i) {
-                  final d = docs[i].data() as Map<String, dynamic>;
-                  return Card(
-                    margin: const EdgeInsets.all(8),
-                    child: ListTile(
-                      title: Text(d['title'] ?? 'Form'),
-                      subtitle: Text(d['done'] == true ? 'Tamamlandı' : 'Bekliyor'),
-                      trailing: Icon(d['done'] == true ? Icons.check_circle : Icons.pending, color: d['done'] == true ? Colors.green : Colors.orange),
-                      onTap: () => _openForm(context, docs[i].id, d, psyId),
-                    ),
-                  );
-                },
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('psychologists')
+            .doc(psychologistId)
+            .collection('tasks')
+            .where('clientFirebaseUid', isEqualTo: uid)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Formlar yüklenemedi: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final docs = snapshot.data!.docs;
+          if (docs.isEmpty) {
+            return const Center(child: Text('Henüz atanmış form veya ödev yok.'));
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.all(8),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final data = docs[index].data();
+              final done = data['done'] == true;
+              final draft = _mapValue(data['formDraft']);
+              final title = data['title']?.toString() ?? draft['title']?.toString() ?? 'Form';
+              return Card(
+                margin: const EdgeInsets.all(8),
+                child: ListTile(
+                  title: Text(title),
+                  subtitle: Text(done ? 'Tamamlandı' : 'Bekliyor'),
+                  trailing: Icon(
+                    done ? Icons.check_circle : Icons.pending,
+                    color: done ? Colors.green : Colors.orange,
+                  ),
+                  onTap: () => _openForm(context, docs[index], data),
+                ),
               );
             },
           );
@@ -280,151 +834,447 @@ class ClientHomeworks extends StatelessWidget {
     );
   }
 
-  void _openForm(BuildContext context, String taskId, Map<String, dynamic> taskData, String psyId) {
-    final draft = taskData['formDraft'] as Map<String, dynamic>?;
-    if (draft == null) return;
-
-    final questions = draft['questions'] as List? ?? [];
-    final Map<String, dynamic> answers = {};
-
-    showModalBottomSheet(context: context, isScrollControlled: true, builder: (c) => StatefulBuilder(
-      builder: (context, setModalState) => DraggableScrollableSheet(
-        expand: false,
-        builder: (_, scroll) => ListView(
-          controller: scroll,
-          padding: const EdgeInsets.all(24),
-          children: [
-            Text(draft['title'] ?? 'Form', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            for (var q in questions)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(q['text'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    const SizedBox(height: 12),
-                    _QuestionWidget(
-                      question: q, 
-                      onChanged: (val) {
-                        answers[q['id']] = val;
-                      }
-                    ),
-                    const Divider(height: 40),
-                  ],
-                ),
-              ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () async {
-                // DOĞRUDAN TASK BELGESİNE YAZIYORUZ
-                await FirebaseFirestore.instance.collection('psychologists').doc(psyId).collection('tasks').doc(taskId).update({
-                  'done': true,
-                  'response': 'Form tamamlandı.',
-                  'structuredAnswers': answers, // Tüm cevapları buraya gömüyoruz
-                  'respondedAt': DateTime.now().toIso8601String(),
-                });
-
-                Navigator.pop(c);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Form Başarıyla Gönderildi.')));
-              },
-              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50), backgroundColor: Colors.teal, foregroundColor: Colors.white),
-              child: const Text('Formu Tamamla ve Gönder'),
-            ),
-            const SizedBox(height: 40),
-          ],
-        ),
+  Future<void> _openForm(
+    BuildContext context,
+    DocumentSnapshot<Map<String, dynamic>> doc,
+    Map<String, dynamic> task,
+  ) async {
+    final draft = _mapValue(task['formDraft']);
+    if (draft.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bu görevde doldurulabilir bir form bulunmuyor.')),
+      );
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => ClientFormDialog(
+        taskReference: doc.reference,
+        taskData: task,
+        draft: draft,
       ),
-    ));
+    );
+    if (ok == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Form Başarıyla Gönderildi.')),
+      );
+    }
   }
 }
 
-class _QuestionWidget extends StatefulWidget {
-  final Map<String, dynamic> question;
-  final ValueChanged<dynamic> onChanged;
-  const _QuestionWidget({required this.question, required this.onChanged});
+class ClientFormDialog extends StatefulWidget {
+  const ClientFormDialog({
+    super.key,
+    required this.taskReference,
+    required this.taskData,
+    required this.draft,
+  });
+
+  final DocumentReference<Map<String, dynamic>> taskReference;
+  final Map<String, dynamic> taskData;
+  final Map<String, dynamic> draft;
+
   @override
-  State<_QuestionWidget> createState() => _QuestionWidgetState();
+  State<ClientFormDialog> createState() => _ClientFormDialogState();
 }
 
-class _QuestionWidgetState extends State<_QuestionWidget> {
-  dynamic _currentValue;
+class _ClientFormDialogState extends State<ClientFormDialog> {
+  late final List<Map<String, dynamic>> _questions;
+  late final Map<String, dynamic> _answers;
+  String? _error;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _questions = (_listValue(widget.draft['questions']))
+        .map(_mapValue)
+        .where((question) => question.isNotEmpty)
+        .toList();
+    _answers = _mapValue(widget.taskData['structuredAnswers']);
+  }
+
+  Future<void> _save() async {
+    for (var index = 0; index < _questions.length; index++) {
+      final question = _questions[index];
+      if (question['required'] == false) continue;
+      final id = question['id']?.toString() ?? 'q$index';
+      final answer = _answers[id];
+      if (answer == null || answer.toString().trim().isEmpty) {
+        setState(() => _error = '${index + 1}. soru zorunludur.');
+        return;
+      }
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await widget.taskReference.update({
+        'done': true,
+        'response': 'Form tamamlandı.',
+        'structuredAnswers': _answers,
+        'respondedAt': FieldValue.serverTimestamp(),
+      });
+      if (mounted) Navigator.pop(context, true);
+    } catch (error) {
+      if (mounted) setState(() => _error = 'Hata: $error');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final type = widget.question['type'] ?? 'text';
-    
-    if (type == 'multiple_choice') {
-      final options = widget.question['options'] as List? ?? [];
-      return Column(
-        children: options.map((opt) => RadioListTile(
-          title: Text(opt.toString()),
-          value: opt.toString(),
-          groupValue: _currentValue,
-          activeColor: Colors.teal,
-          onChanged: (v) {
-            setState(() => _currentValue = v);
-            widget.onChanged(v);
-          },
-        )).toList(),
-      );
-    } else if (type == 'yes_no') {
-      return Row(
-        children: [
-          Expanded(child: ChoiceChip(
-            label: const Center(child: Text('Evet')),
-            selected: _currentValue == 'Evet',
-            onSelected: (s) {
-              setState(() => _currentValue = 'Evet');
-              widget.onChanged('Evet');
-            },
-          )),
-          const SizedBox(width: 12),
-          Expanded(child: ChoiceChip(
-            label: const Center(child: Text('Hayır')),
-            selected: _currentValue == 'Hayır',
-            onSelected: (s) {
-              setState(() => _currentValue = 'Hayır');
-              widget.onChanged('Hayır');
-            },
-          )),
-        ],
-      );
-    } else if (type == 'scale') {
-      final max = (widget.question['scaleMax'] ?? 5).toDouble();
-      return Column(
-        children: [
-          Slider(
-            value: (_currentValue ?? 1).toDouble(),
-            min: 1,
-            max: max,
-            divisions: (max - 1).toInt(),
-            label: (_currentValue ?? 1).toString(),
-            activeColor: Colors.teal,
-            onChanged: (v) {
-              setState(() => _currentValue = v.toInt());
-              widget.onChanged(v.toInt());
-            },
+    final title = widget.draft['title']?.toString() ?? widget.taskData['title']?.toString() ?? 'Form';
+    return AlertDialog(
+      title: Text(title),
+      content: SizedBox(
+        width: 620,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if ((widget.draft['description']?.toString() ?? '').isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(widget.draft['description'].toString()),
+                ),
+              for (var index = 0; index < _questions.length; index++) ...[
+                _questionWidget(_questions[index], index),
+                const SizedBox(height: 16),
+              ],
+              if (_error != null)
+                Text(_error!, style: const TextStyle(color: Colors.red)),
+            ],
           ),
-          Text('Seçilen Değer: ${_currentValue ?? 1}', style: const TextStyle(color: Colors.teal, fontWeight: FontWeight.bold)),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context, false),
+          child: const Text('Vazgeç'),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Formu Tamamla ve Gönder'),
+        ),
+      ],
+    );
+  }
+
+  Widget _questionWidget(Map<String, dynamic> question, int index) {
+    final id = question['id']?.toString() ?? 'q$index';
+    final text = question['text']?.toString() ?? 'Soru ${index + 1}';
+    final type = question['type']?.toString() ?? 'text';
+    final help = question['helpText']?.toString() ?? '';
+    final answer = _answers[id];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '${index + 1}. $text',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        if (help.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(help, style: const TextStyle(color: Colors.black54)),
         ],
-      );
-    }
-    
-    return TextField(
-      onChanged: (v) {
-        _currentValue = v;
-        widget.onChanged(v);
-      },
-      decoration: const InputDecoration(border: OutlineInputBorder(), hintText: 'Yanıtınız...'),
+        const SizedBox(height: 8),
+        if (type == 'multiple_choice')
+          ..._multipleChoice(question, id, answer)
+        else if (type == 'yes_no')
+          Row(
+            children: [
+              Expanded(
+                child: ChoiceChip(
+                  label: const SizedBox(width: double.infinity, child: Center(child: Text('Evet'))),
+                  selected: answer == 'Evet',
+                  onSelected: (_) => setState(() => _answers[id] = 'Evet'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ChoiceChip(
+                  label: const SizedBox(width: double.infinity, child: Center(child: Text('Hayır'))),
+                  selected: answer == 'Hayır',
+                  onSelected: (_) => setState(() => _answers[id] = 'Hayır'),
+                ),
+              ),
+            ],
+          )
+        else if (type == 'scale')
+          _scaleWidget(question, id, answer)
+        else
+          TextFormField(
+            initialValue: answer?.toString() ?? '',
+            maxLines: 3,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: 'Yanıtınız...',
+            ),
+            onChanged: (value) => _answers[id] = value,
+          ),
+      ],
+    );
+  }
+
+  List<Widget> _multipleChoice(Map<String, dynamic> question, String id, dynamic answer) {
+    final options = _listValue(question['options']);
+    return [
+      for (final option in options)
+        RadioListTile<String>(
+          contentPadding: EdgeInsets.zero,
+          title: Text(option.toString()),
+          value: option.toString(),
+          groupValue: answer?.toString(),
+          onChanged: (value) => setState(() => _answers[id] = value),
+        ),
+    ];
+  }
+
+  Widget _scaleWidget(Map<String, dynamic> question, String id, dynamic answer) {
+    final max = (question['scaleMax'] as num?)?.toDouble() ?? 5;
+    final current = ((answer as num?)?.toDouble() ?? 1).clamp(1, max).toDouble();
+    return Column(
+      children: [
+        Slider(
+          value: current,
+          min: 1,
+          max: max,
+          divisions: (max - 1).toInt(),
+          label: current.toInt().toString(),
+          onChanged: (value) => setState(() => _answers[id] = value.toInt()),
+        ),
+        Text('Seçilen Değer: ${current.toInt()}'),
+      ],
     );
   }
 }
 
-class ClientProfile extends StatelessWidget {
-  const ClientProfile({super.key});
+class ClientProfile extends StatefulWidget {
+  const ClientProfile({super.key, required this.patient});
+
+  final Map<String, dynamic> patient;
+
+  @override
+  State<ClientProfile> createState() => _ClientProfileState();
+}
+
+class _ClientProfileState extends State<ClientProfile> {
+  late final TextEditingController _firstName;
+  late final TextEditingController _lastName;
+  late final TextEditingController _email;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final identity = _requestIdentity(widget.patient);
+    _firstName = TextEditingController(text: identity.firstName);
+    _lastName = TextEditingController(text: identity.lastName);
+    _email = TextEditingController(text: identity.email);
+  }
+
+  @override
+  void dispose() {
+    _firstName.dispose();
+    _lastName.dispose();
+    _email.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final first = _firstName.text.trim();
+    final last = _lastName.text.trim();
+    if (first.isEmpty || last.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ad ve soyad alanlarını doldurun.')),
+      );
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await FirebaseFirestore.instance.collection('patients').doc(uid).set({
+        'firstName': first,
+        'lastName': last,
+        'name': '$first $last',
+        'displayName': '$first $last',
+        'email': _email.text.trim(),
+      }, SetOptions(merge: true));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profil kaydedildi.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(appBar: AppBar(title: const Text('Profil')), body: Center(child: ElevatedButton(onPressed: () => FirebaseAuth.instance.signOut(), child: const Text('Çıkış Yap'))));
+    return Scaffold(
+      appBar: AppBar(title: const Text('Profil')),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          TextField(
+            controller: _firstName,
+            decoration: const InputDecoration(labelText: 'Ad', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _lastName,
+            decoration: const InputDecoration(labelText: 'Soyad', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _email,
+            readOnly: true,
+            decoration: const InputDecoration(labelText: 'E-posta', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            onPressed: _saving ? null : _save,
+            icon: const Icon(Icons.save_outlined),
+            label: Text(_saving ? 'Kaydediliyor...' : 'Profili Kaydet'),
+          ),
+          const SizedBox(height: 30),
+          OutlinedButton.icon(
+            onPressed: () => FirebaseAuth.instance.signOut(),
+            icon: const Icon(Icons.logout),
+            label: const Text('Çıkış Yap'),
+          ),
+        ],
+      ),
+    );
   }
+}
+
+class _RequestIdentity {
+  const _RequestIdentity({
+    required this.name,
+    required this.firstName,
+    required this.lastName,
+    required this.email,
+  });
+
+  final String name;
+  final String firstName;
+  final String lastName;
+  final String email;
+}
+
+_RequestIdentity _requestIdentity(Map<String, dynamic> patient) {
+  final user = FirebaseAuth.instance.currentUser;
+  final email = _firstNonEmpty([
+    patient['email']?.toString(),
+    user?.email,
+    '',
+  ]);
+  final storedFirst = patient['firstName']?.toString().trim() ?? '';
+  final storedLast = patient['lastName']?.toString().trim() ?? '';
+  final storedName = _firstNonEmpty([
+    patient['name']?.toString(),
+    patient['displayName']?.toString(),
+    user?.displayName,
+    '',
+  ]);
+  final parts = storedName.split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+  final first = _firstNonEmpty([
+    storedFirst,
+    parts.isEmpty ? '' : parts.first,
+    email.split('@').first,
+  ]);
+  final last = _firstNonEmpty([
+    storedLast,
+    parts.length > 1 ? parts.sublist(1).join(' ') : '',
+  ]);
+  final name = _firstNonEmpty([
+    storedName,
+    [first, last].where((part) => part.isNotEmpty).join(' '),
+    email.split('@').first,
+  ]);
+  return _RequestIdentity(
+    name: name,
+    firstName: first,
+    lastName: last,
+    email: email,
+  );
+}
+
+String _patientName(Map<String, dynamic> patient) => _requestIdentity(patient).name;
+
+String _firstNonEmpty(Iterable<String?> values) {
+  for (final value in values) {
+    final clean = value?.trim() ?? '';
+    if (clean.isNotEmpty) return clean;
+  }
+  return '';
+}
+
+Map<String, dynamic> _mapValue(dynamic value) {
+  if (value is Map<String, dynamic>) return Map<String, dynamic>.from(value);
+  if (value is Map) return value.map((key, val) => MapEntry(key.toString(), val));
+  return <String, dynamic>{};
+}
+
+List<dynamic> _listValue(dynamic value) => value is List ? value : const <dynamic>[];
+
+DateTime _appointmentDate(Map<String, dynamic> data) {
+  final raw = data['date'];
+  if (raw is Timestamp) return raw.toDate();
+  if (raw is DateTime) return raw;
+  if (raw is String) return DateTime.tryParse(raw) ?? DateTime(2100);
+  if (raw is num) return DateTime.fromMillisecondsSinceEpoch(raw.toInt());
+  return DateTime(2100);
+}
+
+String _appointmentStatusLabel(String status) {
+  switch (status) {
+    case 'approved':
+      return 'Onaylandı';
+    case 'planned':
+      return 'Planlandı';
+    case 'rejected':
+      return 'Reddedildi';
+    case 'cancelled':
+      return 'İptal Edildi';
+    case 'done':
+      return 'Tamamlandı';
+    case 'noshow':
+      return 'Gelmedi';
+    default:
+      return 'Beklemede';
+  }
+}
+
+String _formatDateTime(DateTime value) => '${_formatDate(value)} · ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+
+String _formatDate(DateTime value) {
+  const months = [
+    'Ocak',
+    'Şubat',
+    'Mart',
+    'Nisan',
+    'Mayıs',
+    'Haziran',
+    'Temmuz',
+    'Ağustos',
+    'Eylül',
+    'Ekim',
+    'Kasım',
+    'Aralık',
+  ];
+  return '${value.day} ${months[value.month - 1]} ${value.year}';
 }

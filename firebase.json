@@ -1,9 +1,18 @@
 {
-  "hosting": {
-    "public": "build/web",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "rewrites": [{"source": "**", "destination": "/index.html"}]
-  },
+  "hosting": [
+    {
+      "site": "mindtrack-sync-2026-6bf9c",
+      "public": "build/psych",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{"source": "**", "destination": "/index.html"}]
+    },
+    {
+      "site": "mindtrack-danisan",
+      "public": "build/client",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{"source": "**", "destination": "/index.html"}]
+    }
+  ],
   "firestore": {
     "rules": "firestore.rules"
   }

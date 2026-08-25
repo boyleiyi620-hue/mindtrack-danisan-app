@@ -7,6 +7,7 @@ import '../../models/assessment.dart';
 import '../../models/task.dart';
 import '../../models/user_account.dart';
 import '../../theme/app_theme.dart';
+import 'appointment_requests.dart';
 import '../../utils/formats.dart';
 import '../../utils/risk.dart';
 
@@ -77,6 +78,8 @@ class _OverviewTabState extends State<OverviewTab> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _header(context, firstName, todayAppts.length, doneToday, today),
+              const SizedBox(height: 14),
+              PendingAppointmentRequests(data: _data),
               if (riskList.isNotEmpty) ...[
                 const SizedBox(height: 14),
                 _riskBanner(context, riskList),

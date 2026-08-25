@@ -22,6 +22,30 @@ service cloud.firestore {
       allow read, write: if isPsychologist(uid);
     }
 
+    match /patients/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /psychologists/{uid}/appointments/{id} {
+      allow read: if isPsychologist(uid) ||
+        (signedIn() && resource.data.clientFirebaseUid == request.auth.uid);
+      allow create: if isPsychologist(uid) ||
+        (signedIn() && request.resource.data.clientFirebaseUid == request.auth.uid);
+      allow update: if isPsychologist(uid) ||
+        (signedIn() && resource.data.clientFirebaseUid == request.auth.uid &&
+         request.resource.data.clientFirebaseUid == request.auth.uid &&
+         request.resource.data.status == 'cancelled');
+      allow delete: if isPsychologist(uid);
+    }
+
+    match /psychologists/{uid}/tasks/{taskId} {
+      allow read: if isPsychologist(uid) ||
+        (signedIn() && resource.data.clientFirebaseUid == request.auth.uid);
+      allow create, delete: if isPsychologist(uid);
+      allow update: if isPsychologist(uid) ||
+        (signedIn() && resource.data.clientFirebaseUid == request.auth.uid);
+    }
+
     match /pairingCodes/{code} {
       allow create: if isPsychologistRequest();
       allow read: if signedIn();

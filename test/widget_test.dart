@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mindtrack/data/account_store.dart';
-import 'package:mindtrack/data/crypto_utils.dart';
-import 'package:mindtrack/data/data_store.dart';
-import 'package:mindtrack/main.dart';
+import 'package:mindtrack_danisan_app/data/account_store.dart';
+import 'package:mindtrack_danisan_app/data/crypto_utils.dart';
+import 'package:mindtrack_danisan_app/data/data_store.dart';
+import 'package:mindtrack_danisan_app/main_psy_backup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

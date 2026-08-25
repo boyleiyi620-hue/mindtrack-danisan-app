@@ -1,14 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mindtrack/models/app_data.dart';
-import 'package:mindtrack/models/appointment.dart';
-import 'package:mindtrack/models/assessment.dart';
-import 'package:mindtrack/models/client.dart';
-import 'package:mindtrack/models/document.dart';
-import 'package:mindtrack/models/form_entry.dart';
-import 'package:mindtrack/models/note.dart';
-import 'package:mindtrack/models/pdf_library.dart';
-import 'package:mindtrack/models/plan.dart';
-import 'package:mindtrack/models/task.dart';
+import 'package:mindtrack_danisan_app/models/app_data.dart';
+import 'package:mindtrack_danisan_app/models/appointment.dart';
+import 'package:mindtrack_danisan_app/models/assessment.dart';
+import 'package:mindtrack_danisan_app/models/client.dart';
+import 'package:mindtrack_danisan_app/models/document.dart';
+import 'package:mindtrack_danisan_app/models/form_entry.dart';
+import 'package:mindtrack_danisan_app/models/note.dart';
+import 'package:mindtrack_danisan_app/models/pdf_library.dart';
+import 'package:mindtrack_danisan_app/models/plan.dart';
+import 'package:mindtrack_danisan_app/models/task.dart';
 
 void main() {
   test('AppData JSON gidiş-dönüş kayıpsız çalışır', () {
