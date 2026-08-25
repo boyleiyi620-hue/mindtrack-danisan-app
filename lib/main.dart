@@ -398,6 +398,7 @@ class _PairingScreenState extends State<PairingScreen> {
         'psychologistId': psychologistId,
         ...?(localClientId == null ? null : {'localClientId': localClientId}),
       }, SetOptions(merge: true));
+      await snap.reference.update({'clientUserId': uid, 'status': 'paired'});
 
       if (mounted) {
         ScaffoldMessenger.of(context)

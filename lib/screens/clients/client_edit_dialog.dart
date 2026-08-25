@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/data_store.dart';
@@ -91,6 +92,28 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
     }
   }
 
+  Future<String> _resolveClientUserId(Client? client) async {
+    final direct = client?.clientUserId.trim() ?? '';
+    if (direct.isNotEmpty || client == null) return direct;
+    final psychologistId = FirebaseAuth.instance.currentUser?.uid;
+    if (psychologistId == null || psychologistId.isEmpty) return '';
+    try {
+      final linked = await FirebaseFirestore.instance
+          .collection('pairingCodes')
+          .where('psychologistId', isEqualTo: psychologistId)
+          .where('clientId', isEqualTo: client.id)
+          .limit(1)
+          .get();
+      if (linked.docs.isEmpty) return '';
+      final resolved =
+          linked.docs.first.data()['clientUserId']?.toString() ?? '';
+      if (resolved.isNotEmpty) client.clientUserId = resolved;
+      return resolved;
+    } catch (_) {
+      return '';
+    }
+  }
+
   Future<void> _save() async {
     final name = _name.text.trim();
     final email = _email.text.trim();
@@ -144,7 +167,7 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
       );
     }
     widget.data.save();
-    final clientUserId = existing?.clientUserId ?? '';
+    final clientUserId = await _resolveClientUserId(existing);
     if (clientUserId.isNotEmpty) {
       await FirebaseFirestore.instance
           .collection('patients')
