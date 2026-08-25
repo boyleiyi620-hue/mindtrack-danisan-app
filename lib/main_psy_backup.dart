@@ -1,0 +1,78 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+
+import 'app_scope.dart';
+import 'firebase_options.dart';
+import 'data/account_store.dart';
+import 'data/data_store.dart';
+import 'screens/auth/auth_screen.dart';
+import 'screens/auth/pin_screen.dart';
+import 'screens/shell/main_shell.dart';
+import 'theme/app_theme.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  var firebaseReady = false;
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    firebaseReady = true;
+  } catch (_) {
+    // Firebase başlatılamazsa Web/Android uygulaması yine açılabilmelidir.
+    // Senkronizasyon, Firebase hazır olmadığında giriş ekranında devre dışı kalır.
+  }
+  final store = await AccountStore.init();
+  final data = DataStore(store);
+  runApp(MindTrackApp(
+    store: store,
+    data: data,
+    firebaseSignedIn: firebaseReady && FirebaseAuth.instance.currentUser != null,
+  ));
+}
+
+class MindTrackApp extends StatelessWidget {
+  const MindTrackApp({
+    super.key,
+    required this.store,
+    required this.data,
+    this.firebaseSignedIn = true,
+  });
+
+  final AccountStore store;
+  final DataStore data;
+  final bool firebaseSignedIn;
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget home;
+    if (store.current != null && firebaseSignedIn) {
+      home = store.isLocked
+          ? PinScreen(store: store, onUnlock: () {})
+          : MainShell(store: store, data: data);
+    } else {
+      home = AuthScreen(store: store, data: data);
+    }
+    return AppScope(
+      notifier: data,
+      child: MaterialApp(
+        title: 'MindTrack — Psikolog Değerlendirme Sistemi',
+        debugShowCheckedModeBanner: false,
+        locale: const Locale('tr'),
+        supportedLocales: const [Locale('tr'), Locale('en')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        theme: buildAppTheme(),
+        routes: {
+          '/auth': (_) => AuthScreen(store: store, data: data),
+        },
+        home: home,
+      ),
+    );
+  }
+}

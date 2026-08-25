@@ -1,0 +1,2040 @@
+import 'dart:math';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
+import '../../data/data_store.dart';
+import '../../models/app_data.dart';
+import '../../models/appointment.dart';
+import '../../models/assessment.dart';
+import '../../models/client.dart';
+import '../../models/note.dart';
+import '../../models/plan.dart';
+import '../../models/finance.dart' as mt;
+import '../../theme/app_theme.dart';
+import '../../utils/formats.dart';
+import '../../utils/risk.dart';
+import '../../utils/scoring.dart';
+import '../clients/client_edit_dialog.dart';
+import '../clients/note_editor_dialog.dart';
+import '../clients/plan_editor_dialog.dart';
+import 'results_tab.dart' show AssessmentDetailDialog;
+
+/// Danışanlar — liste, danışan detayı, SOAP notları, tedavi planı, güvenlik planı.
+class ClientsTab extends StatefulWidget {
+  const ClientsTab({super.key, required this.data, this.onNavigate});
+
+  final DataStore data;
+  final ValueChanged<String>? onNavigate;
+
+  @override
+  State<ClientsTab> createState() => _ClientsTabState();
+}
+
+class _ClientsTabState extends State<ClientsTab> {
+  String _q = '';
+  String _status = ''; // '' | active | paused | archived
+  String? _clientId;
+  String _sub = 'overview';
+
+  AppData get _d => widget.data.data;
+
+  @override
+  Widget build(BuildContext context) {
+    final client = _clientId == null ? null : _d.clientById(_clientId!);
+    if (client == null) return _listView(context);
+    return _detailView(context, client);
+  }
+
+  // ==================== LİSTE ====================
+  Widget _listView(BuildContext context) {
+    final q = _q.trim().toLowerCase();
+    final clients = _d.clients.where((c) {
+      if (_status.isNotEmpty && (c.status == _status) == false) return false;
+      if (q.isEmpty) return true;
+      return c.name.toLowerCase().contains(q) ||
+          c.email.toLowerCase().contains(q) ||
+          c.phone.contains(q);
+    }).toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+    final active = _d.clients.where((c) => c.status != 'archived').length;
+    final archived = _d.clients.where((c) => c.status == 'archived').length;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(18),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1180),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 620;
+                  final heading = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Danışanlar',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.text),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${_d.clients.length} danışan · $active aktif · $archived arşivli',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 13.5,
+                            color: AppColors.muted),
+                      ),
+                    ],
+                  );
+                  final actions = Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => _openPairingCodeDialog(context),
+                        icon: const Icon(Icons.link, size: 17),
+                        label: const Text('Eşleşme Kodu', style: TextStyle()),
+                      ),
+                      FilledButton.icon(
+                        onPressed: () => _openClientEditor(context),
+                        icon: const Icon(Icons.person_add_alt, size: 17),
+                        label: const Text('Yeni Danışan', style: TextStyle()),
+                      ),
+                    ],
+                  );
+                  return compact
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [heading, const SizedBox(height: 12), actions],
+                        )
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [Expanded(child: heading), actions],
+                        );
+                },
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                onChanged: (v) => setState(() => _q = v),
+                decoration: InputDecoration(
+                  hintText: 'Danışan ara (ad, e-posta, telefon)...',
+                  prefixIcon: const Icon(Icons.search, size: 19),
+                  suffixIcon: _q.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () => setState(() => _q = ''),
+                        )
+                      : null,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final chip in const [
+                    ['', 'Tümü'],
+                    ['active', 'Aktif'],
+                    ['paused', 'Ara Verildi'],
+                    ['archived', 'Arşiv'],
+                  ])
+                    ChoiceChip(
+                      label: Text(chip[1],
+                          style: const TextStyle(
+                              fontSize: 12.5)),
+                      selected: _status == chip[0],
+                      onSelected: (_) => setState(() => _status = chip[0]),
+                      showCheckmark: false,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              if (_d.clients.isEmpty)
+                _emptyClients(context)
+              else if (clients.isEmpty)
+                _searchEmpty()
+              else
+                for (final c in clients) _clientRow(context, c),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyClients(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 44, horizontal: 20),
+        child: Column(
+          children: [
+            Container(
+              width: 62,
+              height: 62,
+              decoration: BoxDecoration(
+                color: AppColors.primarySoft,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Icon(Icons.people_outline,
+                  size: 28, color: AppColors.primary),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Henüz Danışan Yok',
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'İlk danışanınızı ekleyerek değerlendirme sürecine başlayın.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 13, color: AppColors.muted),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () => _openClientEditor(context),
+              icon: const Icon(Icons.person_add_alt, size: 17),
+              label: const Text('İlk Danışanı Ekle',
+                  style: TextStyle()),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _searchEmpty() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 34, horizontal: 16),
+      decoration: BoxDecoration(
+        color: AppColors.bg2.withValues(alpha: .4),
+        borderRadius: BorderRadius.circular(AppSizes.radius),
+        border: Border.all(color: AppColors.border2),
+      ),
+      child: const Column(
+        children: [
+          Icon(Icons.search_off, size: 26, color: AppColors.muted),
+          SizedBox(height: 8),
+          Text(
+            'Bu filtreye uygun danışan bulunamadı',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                fontSize: 13, color: AppColors.text2),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _clientRow(BuildContext context, Client c) {
+    final last = _d.assessmentsOf(c.id).isEmpty
+        ? null
+        : _d.assessmentsOf(c.id).first;
+    final lastNote = _d.notesOf(c.id).isEmpty ? null : _d.notesOf(c.id).first;
+    final lastNoteDays = lastNote == null
+        ? null
+        : DateTime.now()
+            .difference(DateTime.fromMillisecondsSinceEpoch(lastNote.date.toInt()))
+            .inDays;
+    final upcoming = _d.appointmentsOf(c.id)
+        .where((a) => a.date.compareTo(todayIso()) >= 0 && a.status == 'planned')
+        .length;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: InkWell(
+        onTap: () => setState(() {
+          _clientId = c.id;
+          _sub = 'overview';
+        }),
+        borderRadius: BorderRadius.circular(10),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor:
+                  c.status == 'archived' ? AppColors.warning.withValues(alpha: .18) : AppColors.primarySoft,
+              child: Text(
+                c.initials,
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: c.status == 'archived' ? AppColors.warning : AppColors.primaryDark),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          c.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text),
+                        ),
+                      ),
+                      if (c.status != 'active') ...[
+                        const SizedBox(width: 6),
+                        _statusChip(c.status),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${c.email.isNotEmpty ? c.email : '-'}${c.phone.isNotEmpty ? ' · ${c.phone}' : ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 12.5, color: AppColors.muted),
+                  ),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 3,
+                    children: [
+                      Text(
+                        last != null
+                            ? 'Son değerlendirme: ${fmtDate(DateTime.fromMillisecondsSinceEpoch(last.submittedAt.toInt()))}'
+                            : 'Değerlendirme yok',
+                        style: const TextStyle(
+                            fontSize: 11.5, color: AppColors.muted),
+                      ),
+                      Text(
+                        lastNote != null
+                            ? 'Son seans: ${lastNoteDays == null || lastNoteDays < 0 ? 'bugün' : lastNoteDays == 0 ? 'bugün' : lastNoteDays == 1 ? 'dün' : '$lastNoteDays gün önce'}'
+                            : 'Seans notu yok',
+                        style: const TextStyle(
+                            fontSize: 11.5, color: AppColors.muted),
+                      ),
+                      if (upcoming > 0)
+                        Text(
+                          '$upcoming yaklaşan randevu',
+                          style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Düzenle',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => _openClientEditor(context, client: c),
+              icon: const Icon(Icons.edit_outlined,
+                  size: 18, color: AppColors.text2),
+            ),
+            IconButton(
+              tooltip: 'Sil',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => _confirmDeleteClient(context, c),
+              icon: const Icon(Icons.delete_outline,
+                  size: 18, color: AppColors.danger),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statusChip(String status) {
+    final Color fg;
+    final Color bg;
+    if (status == 'archived') {
+      fg = AppColors.warning;
+      bg = AppColors.warningSoft;
+    } else if (status == 'paused') {
+      fg = AppColors.info;
+      bg = AppColors.infoSoft;
+    } else {
+      fg = AppColors.success;
+      bg = AppColors.successSoft;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      child: Text(
+        clientStatusLabel(status),
+        style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            color: fg),
+      ),
+    );
+  }
+
+  // ==================== DETAY ====================
+  Widget _detailView(BuildContext context, Client c) {
+    final assessments = _d.assessmentsOf(c.id);
+    final notes = _d.notesOf(c.id);
+    final appts = _d.appointmentsOf(c.id);
+    final plans = _d.plansOf(c.id);
+    final docs = _d.documentsOf(c.id);
+    final last = assessments.isEmpty ? null : assessments.first;
+    final upcoming =
+        appts.where((a) => a.date.compareTo(todayIso()) >= 0 && a.status == 'planned').length;
+    final done = appts.where((a) => a.status == 'done').length;
+    final age = ageFromBirth(c.birthDate);
+
+    const subs = <(String, IconData, String)>[
+      ('overview', Icons.space_dashboard_outlined, 'Genel Bakış'),
+      ('assessments', Icons.assignment_outlined, 'Değerlendirmeler'),
+      ('appointments', Icons.calendar_month_outlined, 'Randevular'),
+      ('notes', Icons.note_alt_outlined, 'Seans Notları'),
+      ('plan', Icons.track_changes_outlined, 'Tedavi Planı'),
+      ('safety', Icons.shield_outlined, 'Güvenlik Planı'),
+    ];
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(18),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1180),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _clientId = null),
+                  icon: const Icon(Icons.chevron_left, size: 18),
+                  label: const Text('Danışanlar',
+                      style: TextStyle()),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  borderRadius: BorderRadius.circular(AppSizes.radius),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    LayoutBuilder(
+                      builder: (context, bc) {
+                        final narrow = bc.maxWidth < 700;
+                        final identity = Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CircleAvatar(
+                              radius: 28,
+                              backgroundColor: AppColors.primarySoft,
+                              child: Text(c.initials, style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w700,
+                                  color: AppColors.primaryDark)),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(c.name, maxLines: 2, overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 19,
+                                          fontWeight: FontWeight.w800, color: AppColors.text)),
+                                  if (c.status != 'active') ...[
+                                    const SizedBox(height: 4),
+                                    _statusChip(c.status),
+                                  ],
+                                  if (c.tags.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 4,
+                                      children: [for (final t in c.tags) Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(color: AppColors.bg2,
+                                            borderRadius: BorderRadius.circular(6)),
+                                        child: Text(t, style: const TextStyle(fontSize: 11, color: AppColors.text2)),
+                                      )],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                        final actions = Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: () => _openClientEditor(context, client: c),
+                              icon: const Icon(Icons.edit_outlined, size: 15),
+                              label: const Text('Düzenle', style: TextStyle(fontSize: 12.5)),
+                            ),
+                            FilledButton.icon(
+                              onPressed: () => widget.onNavigate?.call('appointments'),
+                              icon: const Icon(Icons.event_available, size: 15),
+                              label: const Text('Randevu', style: TextStyle(fontSize: 12.5)),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: () => _openHomeworkDialog(context, c),
+                              icon: const Icon(Icons.assignment_outlined, size: 15),
+                              label: const Text('Ödevler', style: TextStyle(fontSize: 12.5)),
+                            ),
+                          ],
+                        );
+                        return narrow
+                            ? Column(crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [identity, const SizedBox(height: 12), actions])
+                            : Row(crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [identity, const SizedBox(width: 12), actions]);
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    const Divider(height: 1),
+                    const SizedBox(height: 14),
+                    LayoutBuilder(
+                      builder: (context, bc) {
+                        final wide = bc.maxWidth >= 760;
+                        final info = [
+                          ('E-posta', c.email.isNotEmpty ? c.email : '-'),
+                          ('Telefon', c.phone.isNotEmpty ? c.phone : '-'),
+                          ('Doğum Tarihi',
+                              c.birthDate.isNotEmpty ? '${fmtIsoDate(c.birthDate)}${age != null ? ' ($age yaş)' : ''}' : '-'),
+                          ('Cinsiyet', c.gender.isNotEmpty ? c.gender : '-'),
+                          ('Seans Ücreti', '₺${c.sessionFee.toStringAsFixed(2)}'),
+                          ('Son Değerlendirme',
+                              last != null ? fmtDateTime(last.submittedAt) : 'Yok'),
+                          ('Tamamlanan Seans', '$done seans'),
+                          ('Bekleyen Randevu', '$upcoming adet'),
+                        ];
+                        return Wrap(
+                          spacing: 16,
+                          runSpacing: 12,
+                          children: [
+                            for (final (k, v) in info)
+                              SizedBox(
+                                width: wide
+                                    ? (bc.maxWidth - 32) / 3
+                                    : (bc.maxWidth - 16) / 2,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(k,
+                                        style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.muted)),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      v,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontSize: 13,
+                                          color: AppColors.text),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final s in subs)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          avatar: Icon(
+                            s.$2,
+                            size: 15,
+                            color: _sub == s.$1
+                                ? AppColors.primaryDark
+                                : AppColors.muted,
+                          ),
+                          label: Text(s.$3,
+                              style: const TextStyle(
+                                  fontSize: 12.5)),
+                          selected: _sub == s.$1,
+                          onSelected: (_) => setState(() => _sub = s.$1),
+                          showCheckmark: false,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              _subView(context, c, _sub, assessments, notes, appts, plans, docs),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _subView(
+    BuildContext context,
+    Client c,
+    String sub,
+    List<Assessment> assessments,
+    List<Note> notes,
+    List<Appointment> appts,
+    List<Plan> plans,
+    List<dynamic> docs,
+  ) {
+    switch (sub) {
+      case 'assessments':
+        return _assessmentsView(context, c, assessments);
+      case 'appointments':
+        return _appointmentsView(context, appts);
+      case 'notes':
+        return _notesView(context, c, notes);
+      case 'plan':
+        return _planView(context, c, plans);
+      case 'safety':
+        return _safetyView(context, c);
+      default:
+        return _overviewSubView(context, c, assessments, notes, plans);
+    }
+  }
+
+  // ---- Genel Bakış (danışan) ----
+  Widget _overviewSubView(BuildContext context, Client c,
+      List<Assessment> assessments, List<Note> notes, List<Plan> plans) {
+    final latestNote = notes.isEmpty ? null : notes.first;
+    return LayoutBuilder(
+      builder: (context, bc) {
+        final wide = bc.maxWidth >= 760;
+        final left = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (widget.data.accounts.current?.appMode == 'commercial') ...[
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: .1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.withValues(alpha: .2)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.payments_outlined, size: 19, color: Colors.green),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Hızlı Tahsilat', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text)),
+                          Text('Seans ücreti: ₺${c.sessionFee.toStringAsFixed(2)}', style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                        ],
+                      ),
+                    ),
+                    FilledButton(
+                      onPressed: () => _quickCollect(context, c),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                        minimumSize: const Size(0, 32),
+                      ),
+                      child: const Text('Ödeme Al', style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.bg2.withValues(alpha: .5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.shield_outlined,
+                      size: 19, color: AppColors.primaryDark),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Güvenlik Planı ${c.hasSafety ? '' : 'yok'}',
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.text),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() => _sub = 'safety'),
+                    child: const Text('Düzenle',
+                        style: TextStyle(
+                            fontSize: 12.5)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            _panelTitle('Son Değerlendirmeler', 'assessments'),
+            const SizedBox(height: 8),
+            if (assessments.isEmpty)
+              _miniEmpty(Icons.assignment_outlined, 'Değerlendirme yok')
+            else
+              for (final a in assessments.take(3))
+                _assessTile(context, a),
+          ],
+        );
+        final right = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _panelTitle('Son Seans Notu', 'notes'),
+            const SizedBox(height: 8),
+            if (latestNote == null)
+              _miniEmpty(Icons.note_alt_outlined, 'Seans notu yok')
+            else
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            latestNote.title.isNotEmpty ? latestNote.title : 'Seans Notu',
+                            style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.text),
+                          ),
+                        ),
+                        Text(
+                          fmtDate(DateTime.fromMillisecondsSinceEpoch(latestNote.date.toInt())),
+                          style: const TextStyle(
+                              fontSize: 11.5,
+                              color: AppColors.muted),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      latestNote.plan.isNotEmpty
+                          ? latestNote.plan
+                          : latestNote.subjective.isNotEmpty
+                              ? latestNote.subjective
+                              : latestNote.assessment.isNotEmpty
+                                  ? latestNote.assessment
+                                  : latestNote.objective,
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.text2),
+                    ),
+                  ],
+                ),
+              ),
+            if (plans.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              _panelTitle('Tedavi Planı Özeti', 'plan'),
+              const SizedBox(height: 8),
+              _planProgress(plans),
+            ],
+          ],
+        );
+        if (wide) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: left),
+              const SizedBox(width: 16),
+              Expanded(child: right),
+            ],
+          );
+        }
+        return Column(
+          children: [
+            left,
+            const SizedBox(height: 16),
+            right,
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _panelTitle(String title, String sub) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text),
+          ),
+        ),
+        TextButton(
+          onPressed: () => setState(() => _sub = sub),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Tümü', style: TextStyle()),
+              SizedBox(width: 2),
+              Icon(Icons.arrow_forward, size: 14),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _miniEmpty(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.bg2.withValues(alpha: .4),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border2),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 22, color: AppColors.muted),
+          const SizedBox(height: 6),
+          Text(
+            text,
+            style: const TextStyle(
+                fontSize: 12.5, color: AppColors.muted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---- Değerlendirmeler ----
+  Widget _assessmentsView(
+      BuildContext context, Client c, List<Assessment> assessments) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (assessments.isEmpty)
+          _miniEmpty(Icons.assignment_outlined,
+              'Bu danışan için henüz değerlendirme yok')
+        else
+          for (final a in assessments) _assessTile(context, a),
+      ],
+    );
+  }
+
+  Widget _assessTile(BuildContext context, Assessment a) {
+    final f = _d.formById(a.formId);
+    final sc = assessmentScore(_d, a);
+    final risk = isRiskyAssessment(_d, a);
+    return InkWell(
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (_) => AssessmentDetailDialog(data: widget.data, assessment: a),
+      ),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: risk
+                  ? AppColors.danger.withValues(alpha: .4)
+                  : AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: (risk ? AppColors.danger : AppColors.info)
+                    .withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                risk ? Icons.warning_amber_rounded : Icons.assignment,
+                size: 17,
+                color: risk ? AppColors.danger : AppColors.info,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    f?.title ?? 'Bilinmeyen Form',
+                    style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    fmtDateTime(a.submittedAt) +
+                        (sc != null
+                            ? ' · Ortalama: ${sc.avg.toStringAsFixed(1)}/${sc.max}'
+                            : ''),
+                    style: const TextStyle(
+                        fontSize: 11.5, color: AppColors.muted),
+                  ),
+                ],
+              ),
+            ),
+            const Text('İncele',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.info)),
+            const Icon(Icons.chevron_right, size: 17, color: AppColors.muted),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---- Randevular ----
+  Widget _appointmentsView(BuildContext context, List<Appointment> appts) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (appts.isEmpty)
+          _miniEmpty(Icons.calendar_month_outlined, 'Randevu bulunmuyor')
+        else
+          for (final a in appts) _apptRow(context, a),
+      ],
+    );
+  }
+
+  Widget _apptRow(BuildContext context, Appointment a) {
+    final today = todayIso();
+    final completed = a.status == 'done';
+    final gone = a.status == 'noshow';
+    final planned = a.status == 'planned';
+    final isTodayOrPast = a.date.compareTo(today) <= 0;
+    final dur = a.durationMin > 0 ? '${a.durationMin} dk' : '50 dk';
+    final noteTxt = a.notes.isNotEmpty ? ' · ${a.notes}' : '';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: (completed
+                      ? AppColors.success
+                      : gone
+                          ? AppColors.danger
+                          : AppColors.warning)
+                  .withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              completed
+                  ? Icons.check_circle
+                  : gone
+                      ? Icons.cancel
+                      : Icons.schedule,
+              size: 17,
+              color: completed
+                  ? AppColors.success
+                  : gone
+                      ? AppColors.danger
+                      : AppColors.warning,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${fmtDate(DateTime.parse(a.date))}${a.date == today ? ' · Bugün' : ''} · ${fmtTime(a.time)}',
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${apptTypeLabel(a.type)} · $dur$noteTxt',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 11.5, color: AppColors.muted),
+                ),
+              ],
+            ),
+          ),
+          _chip(apptStatusLabel(a.status), completed, gone),
+          if (planned && isTodayOrPast) ...[
+            IconButton(
+              tooltip: 'Tamamlandı',
+              visualDensity: VisualDensity.compact,
+              onPressed: () {
+                a.status = 'done';
+                widget.data.save();
+              },
+              icon: const Icon(Icons.check_circle_outline,
+                  size: 19, color: AppColors.success),
+            ),
+            IconButton(
+              tooltip: 'Gelmedi',
+              visualDensity: VisualDensity.compact,
+              onPressed: () {
+                a.status = 'noshow';
+                widget.data.save();
+              },
+              icon: const Icon(Icons.cancel_outlined,
+                  size: 19, color: AppColors.danger),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _chip(String label, bool completed, bool gone) {
+    final Color fg;
+    final Color bg;
+    if (completed) {
+      fg = AppColors.success;
+      bg = AppColors.successSoft;
+    } else if (gone) {
+      fg = AppColors.danger;
+      bg = AppColors.dangerSoft;
+    } else {
+      fg = AppColors.muted;
+      bg = AppColors.bg2;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(7)),
+      child: Text(
+        label,
+        style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            color: fg),
+      ),
+    );
+  }
+
+  // ---- SOAP notları ----
+  Widget _notesView(BuildContext context, Client c, List<Note> notes) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.icon(
+            onPressed: () => _openNoteEditor(context, c),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Seans Notu Ekle',
+                style: TextStyle()),
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (notes.isEmpty)
+          _miniEmpty(Icons.note_alt_outlined,
+              'Henüz seans notu yok. Seans sonrası SOAP notlarınızı buradan tutabilirsiniz.')
+        else
+          for (final n in notes) _noteCard(context, c, n),
+      ],
+    );
+  }
+
+  Widget _noteCard(BuildContext context, Client c, Note n) {
+    final sections = <(String, String)>[
+      if (n.subjective.isNotEmpty) ('S — Öznel', n.subjective),
+      if (n.objective.isNotEmpty) ('O — Nesnel', n.objective),
+      if (n.assessment.isNotEmpty) ('A — Değerlendirme', n.assessment),
+      if (n.plan.isNotEmpty) ('P — Plan', n.plan),
+    ];
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  n.title.isNotEmpty ? n.title : 'Seans Notu',
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.text),
+                ),
+              ),
+              if (n.mood.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(right: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.successSoft,
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Text(
+                    n.mood,
+                    style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.success),
+                  ),
+                ),
+              IconButton(
+                tooltip: 'Düzenle',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _openNoteEditor(context, c, note: n),
+                icon: const Icon(Icons.edit_outlined,
+                    size: 17, color: AppColors.text2),
+              ),
+              IconButton(
+                tooltip: 'Sil',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _confirmDeleteNote(context, n),
+                icon: const Icon(Icons.delete_outline,
+                    size: 17, color: AppColors.danger),
+              ),
+            ],
+          ),
+          Text(
+            fmtDateTime(n.date),
+            style: const TextStyle(
+                fontSize: 11.5, color: AppColors.muted),
+          ),
+          const SizedBox(height: 8),
+          for (final (k, v) in sections)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    k,
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.info),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    v,
+                    style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.text2,
+                        height: 1.45),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ---- Tedavi planı ----
+  Widget _planView(BuildContext context, Client c, List<Plan> plans) {
+    final plan = plans.isEmpty ? null : plans.first;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.icon(
+            onPressed: () => _openPlanEditor(context, c, plan: plan),
+            icon: Icon(plan == null ? Icons.add : Icons.edit_outlined, size: 16),
+            label: Text(plan == null ? 'Plan Oluştur' : 'Planı Düzenle',
+                style: const TextStyle()),
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (plan == null)
+          _miniEmpty(Icons.track_changes_outlined,
+              'Danışanınız için hedefler ve müdahaleler belirleyin.')
+        else ...[
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  plan.title,
+                  style: const TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.text),
+                ),
+                if (plan.description.isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    plan.description,
+                    style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.text2),
+                  ),
+                ],
+                if (plan.interventions.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final i in plan.interventions)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.infoSoft,
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Text(
+                            i,
+                            style: const TextStyle(
+                                fontSize: 11.5,
+                                color: AppColors.info),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 12),
+                _goalList(plan),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _goalList(Plan plan) {
+    if (plan.goals.isEmpty) {
+      return _miniEmpty(Icons.flag_outlined, 'Henüz hedef eklenmedi');
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final g in plan.goals)
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(11),
+            decoration: BoxDecoration(
+              color: AppColors.bg2.withValues(alpha: .45),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  g.status == 'achieved'
+                      ? Icons.check_circle
+                      : g.status == 'dropped'
+                          ? Icons.cancel
+                          : g.status == 'in_progress'
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                  size: 19,
+                  color: g.status == 'achieved'
+                      ? AppColors.success
+                      : g.status == 'dropped'
+                          ? AppColors.danger
+                          : g.status == 'in_progress'
+                              ? AppColors.info
+                              : AppColors.muted,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        g.text,
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: g.status == 'achieved'
+                                ? AppColors.muted
+                                : AppColors.text,
+                            decoration: g.status == 'achieved'
+                                ? TextDecoration.lineThrough
+                                : null),
+                      ),
+                      const SizedBox(height: 3),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          _goalChip(goalCategoryLabel(g.category),
+                              AppColors.primaryDark, AppColors.primarySoft),
+                          _goalChip(goalStatusLabel(g.status),
+                              _statusColor(g.status), _statusBg(g.status)),
+                          if (g.targetDate != null && g.targetDate!.isNotEmpty)
+                            Text(
+                              'Hedef: ${fmtIsoDate(g.targetDate!)}',
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.muted),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'achieved':
+        return AppColors.success;
+      case 'in_progress':
+        return AppColors.info;
+      case 'dropped':
+        return AppColors.danger;
+      default:
+        return AppColors.warning;
+    }
+  }
+
+  Color _statusBg(String status) {
+    switch (status) {
+      case 'achieved':
+        return AppColors.successSoft;
+      case 'in_progress':
+        return AppColors.infoSoft;
+      case 'dropped':
+        return AppColors.dangerSoft;
+      default:
+        return AppColors.warningSoft;
+    }
+  }
+
+  Widget _goalChip(String text, Color fg, Color bg) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            color: fg),
+      ),
+    );
+  }
+
+  Widget _planProgress(List<Plan> plans) {
+    final goals = [
+      for (final p in plans) ...p.goals,
+    ];
+    final counts = <String, int>{
+      'pending': 0,
+      'in_progress': 0,
+      'achieved': 0,
+      'dropped': 0,
+    };
+    for (final g in goals) {
+      counts[g.status] = (counts[g.status] ?? 0) + 1;
+    }
+    final total = goals.length;
+    final pct = total == 0
+        ? 0.0
+        : (counts['achieved']! / total * 100).clamp(0, 100);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              _goalChip('${counts['pending']} Bekliyor', AppColors.warning, AppColors.warningSoft),
+              _goalChip('${counts['in_progress']} Devam Ediyor', AppColors.info, AppColors.infoSoft),
+              _goalChip('${counts['achieved']} Tamamlandı', AppColors.success, AppColors.successSoft),
+              _goalChip('${counts['dropped']} Bırakıldı', AppColors.muted, AppColors.bg2),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: pct / 100,
+              minHeight: 9,
+              backgroundColor: AppColors.bg2,
+              color: AppColors.success,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            total == 0 ? 'Henüz hedef yok' : 'Tamamlanma: %${pct.round()}',
+            style: const TextStyle(
+                fontSize: 11.5, color: AppColors.muted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---- Güvenlik planı ----
+  Widget _safetyView(BuildContext context, Client c) {
+    return LayoutBuilder(
+      builder: (context, bc) {
+        final wide = bc.maxWidth >= 760;
+        final form = SafeArea(
+          top: false,
+          child: _SafetyForm(
+            key: ValueKey('safety-${c.id}-$_sub'),
+            client: c,
+            data: widget.data,
+          ),
+        );
+        final info = Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.infoSoft,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFCFE3F2)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Acil Durum Hatları',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.info)),
+              const SizedBox(height: 10),
+              for (final line in const [
+                '112 — Acil Sağlık (AMBULANS)',
+                '155 — Polis İmdat',
+                '156 — Jandarma',
+                '183 — Aile, Kadın, Çocuk ve Engelli Sosyal Hizmet Danışma Hattı',
+              ])
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 5),
+                  child: Text(
+                    line,
+                    style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.text2),
+                  ),
+                ),
+              const SizedBox(height: 6),
+              const Text(
+                'Kriz anında danışana bu numaraları hatırlatın; ciddi riskte acil servise yönlendirin.',
+                style: TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.muted,
+                    height: 1.5),
+              ),
+            ],
+          ),
+        );
+        if (wide) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 3, child: form),
+              const SizedBox(width: 16),
+              Expanded(flex: 2, child: info),
+            ],
+          );
+        }
+        return Column(
+          children: [
+            form,
+            const SizedBox(height: 16),
+            info,
+          ],
+        );
+      },
+    );
+  }
+
+  // ==================== DİYALOGLAR / AKSİYONLAR ====================
+  Future<void> _openClientEditor(BuildContext context, {Client? client}) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => ClientEditDialog(data: widget.data, existing: client),
+    );
+    if (ok == true) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+            content: Text(
+                client == null ? 'Danışan eklendi.' : 'Danışan güncellendi.',
+                style: const TextStyle())));
+    }
+  }
+
+  Future<void> _openNoteEditor(BuildContext context, Client c,
+      {Note? note}) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) =>
+          NoteEditorDialog(data: widget.data, clientId: c.id, existing: note),
+    );
+    if (ok == true) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+            content: Text(note == null ? 'Seans notu eklendi.' : 'Seans notu güncellendi.',
+                style: const TextStyle())));
+    }
+  }
+
+  Future<void> _openPlanEditor(BuildContext context, Client c,
+      {Plan? plan}) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) =>
+          PlanEditorDialog(data: widget.data, client: c, existing: plan),
+    );
+    if (ok == true) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+            content: Text(plan == null ? 'Tedavi planı kaydedildi.' : 'Tedavi planı güncellendi.',
+                style: const TextStyle())));
+    }
+  }
+
+  Future<void> _confirmDeleteNote(BuildContext context, Note n) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Notu sil', style: TextStyle()),
+        content: Text('"${n.title.isEmpty ? 'Seans Notu' : n.title}" kalıcı olarak silinsin mi?',
+            style: const TextStyle()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Vazgeç', style: TextStyle()),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            child: const Text('Sil', style: TextStyle()),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      _d.notes.removeWhere((x) => x.id == n.id);
+      widget.data.save();
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+            content: Text('Not silindi.', style: TextStyle())));
+    }
+  }
+
+  Future<void> _openHomeworkDialog(BuildContext context, Client c) async {
+    final auth = await _ensureFirebaseSession(context);
+    if (auth == null || !mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('${c.name} · Ödevler', style: const TextStyle()),
+        content: SizedBox(
+          width: 520,
+          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance
+                .collection('homework')
+                .where('psychologistId', isEqualTo: auth.uid)
+                .snapshots(),
+            builder: (ctx, snap) {
+              if (snap.hasError) {
+                return Text('Ödevler yüklenemedi: ${snap.error}', style: const TextStyle());
+              }
+              if (!snap.hasData) {
+                return const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()));
+              }
+              final items = snap.data!.docs.where((d) => d.data()['clientId'] == c.id).toList()
+                ..sort((a, b) => ((b.data()['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0)
+                    .compareTo((a.data()['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0));
+              if (items.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Text('Bu danışana henüz ödev verilmedi.'),
+                );
+              }
+              return SizedBox(
+                height: 300,
+                child: ListView.separated(
+                  itemCount: items.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, i) {
+                    final d = items[i].data();
+                    final response = (d['response'] ?? '').toString().trim();
+                    final status = (d['status'] ?? 'assigned').toString();
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text((d['title'] ?? 'Ödev').toString(), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      subtitle: Text(
+                        response.isEmpty ? 'Yanıt bekleniyor · $status' : 'Yanıt: $response',
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: response.isEmpty
+                          ? const Icon(Icons.hourglass_empty, size: 18)
+                          : const Icon(Icons.check_circle_outline, color: AppColors.primary, size: 19),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Kapat', style: TextStyle())),
+          FilledButton.icon(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await _createHomework(context, c, auth.uid);
+            },
+            icon: const Icon(Icons.add, size: 17),
+            label: const Text('Yeni Ödev', style: TextStyle()),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _createHomework(BuildContext context, Client c, String psychologistId) async {
+    final title = TextEditingController();
+    final description = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('${c.name} için ödev', style: const TextStyle()),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: title, decoration: const InputDecoration(labelText: 'Ödev başlığı')),
+              const SizedBox(height: 10),
+              TextField(controller: description, minLines: 3, maxLines: 6, decoration: const InputDecoration(labelText: 'Açıklama / yönerge')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Vazgeç', style: TextStyle())),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Gönder', style: TextStyle())),
+        ],
+      ),
+    );
+    final titleValue = title.text.trim();
+    final descriptionValue = description.text.trim();
+    title.dispose();
+    description.dispose();
+    if (result != true || titleValue.isEmpty) return;
+    try {
+      await FirebaseFirestore.instance.collection('homework').add({
+        'psychologistId': psychologistId,
+        'clientId': c.id,
+        'clientUserId': c.clientUserId,
+        'clientEmail': c.email,
+        'title': titleValue,
+        'description': descriptionValue,
+        'status': 'assigned',
+        'response': '',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ödev danışana gönderildi.', style: TextStyle())));
+      }
+    } on FirebaseException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ödev gönderilemedi: ${e.message ?? e.code}', style: const TextStyle())));
+      }
+    }
+  }
+
+  Future<void> _openPairingCodeDialog(BuildContext context) async {
+    final auth = await _ensureFirebaseSession(context);
+    if (auth == null) return;
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final random = Random.secure();
+    final code = List.generate(8, (_) => chars[random.nextInt(chars.length)]).join();
+    await FirebaseFirestore.instance.collection('pairingCodes').doc(code).set({
+              'psychologistId': auth.uid,
+        'psychologistEmail': widget.data.accounts.current?.email ?? '',
+        'code': code,
+        'status': 'pending',
+        'clientUserId': '',
+        'clientName': '',
+        'clientEmail': '',
+
+      'createdAt': FieldValue.serverTimestamp(),
+      'expiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(days: 7))),
+    });
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Danışan eşleşme kodu', style: TextStyle()),
+        content: SelectableText(code, textAlign: TextAlign.center, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: 3)),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Kapat', style: TextStyle()))],
+      ),
+    );
+  }
+
+  Future<User?> _ensureFirebaseSession(BuildContext context) async {
+    final current = FirebaseAuth.instance.currentUser;
+    if (current != null) return current;
+    final email = widget.data.accounts.current?.email.trim().toLowerCase();
+    if (email == null || email.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Önce hesabınızla giriş yapın.', style: TextStyle()),
+        ));
+      }
+      return null;
+    }
+    final password = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Firebase hesabını bağla', style: TextStyle()),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('$email hesabıyla Firebase oturumu açılacak.', style: const TextStyle()),
+            const SizedBox(height: 12),
+            TextField(
+              controller: password,
+              obscureText: true,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Hesap şifresi'),
+              onSubmitted: (_) => Navigator.of(ctx).pop(true),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Vazgeç', style: TextStyle())),
+          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Bağlan', style: TextStyle())),
+        ],
+      ),
+    );
+    if (confirmed != true || password.text.isEmpty) {
+      password.dispose();
+      return null;
+    }
+    try {
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password.text,
+      );
+      password.dispose();
+      return credential.user;
+    } on FirebaseAuthException catch (e) {
+      password.dispose();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Firebase oturumu açılamadı: ${e.message ?? e.code}', style: const TextStyle()),
+        ));
+      }
+      return null;
+    }
+  }
+
+  Future<void> _confirmDeleteClient(
+      BuildContext context, Client c) async {
+    final nA = _d.assessmentsOf(c.id).length;
+    final nN = _d.notesOf(c.id).length;
+    final nP = _d.plansOf(c.id).length;
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Danışanı sil', style: TextStyle()),
+        content: Text(
+          '"${c.name}" ve kayıtlı tüm verileri silinecek:\n• $nA değerlendirme\n• $nN seans notu\n• $nP tedavi planı\n\nBu işlem geri alınamaz.',
+          style: const TextStyle(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Vazgeç', style: TextStyle()),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            child: const Text('Evet, Sil', style: TextStyle()),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      _d.clients.removeWhere((x) => x.id == c.id);
+      _d.assessments.removeWhere((x) => x.clientId == c.id);
+      _d.appointments.removeWhere((x) => x.clientId == c.id);
+      _d.notes.removeWhere((x) => x.clientId == c.id);
+      _d.plans.removeWhere((x) => x.clientId == c.id);
+      _d.documents.removeWhere((x) => x.clientId == c.id);
+      if (_clientId == c.id) _clientId = null;
+      widget.data.save();
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+            content: Text('Danışan ve tüm kayıtları silindi.',
+                style: TextStyle())));
+    }
+  }
+
+  void _quickCollect(BuildContext context, Client c) {
+    final amount = c.sessionFee > 0 ? c.sessionFee : 0.0;
+    final controller = TextEditingController(text: amount > 0 ? amount.toStringAsFixed(0) : '');
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Ödeme Al'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${c.name} için seans ödemesi kaydedilsin mi?'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Tutar (₺)',
+                prefixText: '₺ ',
+                hintText: 'Örn: 500',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
+          FilledButton(
+            onPressed: () {
+              final newAmt = double.tryParse(controller.text.trim()) ?? 0.0;
+              _executeQuickCollect(context, c, newAmt);
+            },
+            child: const Text('Kaydet'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _executeQuickCollect(BuildContext context, Client c, double amount) {
+    final tx = mt.Transaction(
+      id: widget.data.newId(),
+      clientId: c.id,
+      amount: amount,
+      date: todayIso(),
+      type: 'income',
+      category: 'Seans',
+      notes: 'Danışan kartından hızlı tahsilat',
+    );
+    setState(() => widget.data.data.transactions.add(tx));
+    widget.data.save();
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ödeme başarıyla kaydedildi.')));
+  }
+}
+
+/// Güvenlik planı formu — kaydet butonuyla birlikte.
+class _SafetyForm extends StatefulWidget {
+  const _SafetyForm({super.key, required this.client, required this.data});
+
+  final Client client;
+  final DataStore data;
+
+  @override
+  State<_SafetyForm> createState() => _SafetyFormState();
+}
+
+class _SafetyFormState extends State<_SafetyForm> {
+  late final TextEditingController _warnings;
+  late final TextEditingController _coping;
+  late final TextEditingController _contacts;
+  late final TextEditingController _emergency;
+
+  @override
+  void initState() {
+    super.initState();
+    final s = widget.client.safety;
+    _warnings = TextEditingController(text: s?.warnings ?? '');
+    _coping = TextEditingController(text: s?.coping ?? '');
+    _contacts = TextEditingController(text: s?.contacts ?? '');
+    _emergency = TextEditingController(text: s?.emergency ?? '');
+  }
+
+  @override
+  void dispose() {
+    _warnings.dispose();
+    _coping.dispose();
+    _contacts.dispose();
+    _emergency.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final c = widget.client;
+    final s = c.safety ?? SafetyPlan();
+    s.warnings = _warnings.text.trim();
+    s.coping = _coping.text.trim();
+    s.contacts = _contacts.text.trim();
+    s.emergency = _emergency.text.trim();
+    s.updatedAt = DateTime.now().millisecondsSinceEpoch.toDouble();
+    c.safety = s;
+    c.updatedAt = DateTime.now().millisecondsSinceEpoch.toDouble();
+    widget.data.save();
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(
+          content: Text('Güvenlik planı kaydedildi.')));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Kriz / Güvenlik Planı',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text)),
+          const SizedBox(height: 4),
+          const Text(
+            'Kriz anlarına hazırlık için danışanla birlikte doldurun.',
+            style: TextStyle(
+                fontSize: 12, color: AppColors.muted),
+          ),
+          const SizedBox(height: 14),
+          _field('Uyarı işaretleri — danışanı riskli hissettiren belirtiler',
+              _warnings, 'Örn: İçine kapanma, uyku bozukluğu, umutsuzluk...', 3),
+          const SizedBox(height: 10),
+          _field('Baş etme stratejileri — işe yarayan rahatlatıcı yöntemler',
+              _coping, 'Örn: Nefes egzersizi, güvendiği kişiyle konuşmak...', 3),
+          const SizedBox(height: 10),
+          _field('Destek kişileri — ad ve telefon (her satıra biri)', _contacts,
+              'Örn: Ayşe (anne) — 05XX XXX XX XX', 3),
+          const SizedBox(height: 10),
+          _field('Acil durum notları', _emergency,
+              'Hastane tercihi, ilaçlar, alerjiler, özel durumlar...', 2),
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              onPressed: _save,
+              icon: const Icon(Icons.save_outlined, size: 16),
+              label: const Text('Güvenlik Planını Kaydet'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _field(String label, TextEditingController c, String hint, int lines) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.text2)),
+        const SizedBox(height: 6),
+        TextField(controller: c, maxLines: lines, decoration: InputDecoration(hintText: hint)),
+      ],
+    );
+  }
+}

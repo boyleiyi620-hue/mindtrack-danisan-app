@@ -1,0 +1,362 @@
+import 'package:flutter/material.dart';
+
+import '../../data/data_store.dart';
+import '../../models/client.dart';
+import '../../theme/app_theme.dart';
+
+/// Yeni danışan ekleme / mevcut danışanı düzenleme penceresi.
+class ClientEditDialog extends StatefulWidget {
+  const ClientEditDialog({super.key, required this.data, this.existing});
+
+  final DataStore data;
+  final Client? existing;
+
+  @override
+  State<ClientEditDialog> createState() => _ClientEditDialogState();
+}
+
+class _ClientEditDialogState extends State<ClientEditDialog> {
+  late final TextEditingController _name;
+  late final TextEditingController _email;
+  late final TextEditingController _phone;
+  late final TextEditingController _sessionFee;
+  late final TextEditingController _tags;
+  late final TextEditingController _notes;
+  String _birthDate = '';
+  String _gender = '';
+  String _status = 'active';
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final c = widget.existing;
+    _name = TextEditingController(text: c?.name ?? '');
+    _email = TextEditingController(text: c?.email ?? '');
+    _phone = TextEditingController(text: c?.phone ?? '');
+    _sessionFee = TextEditingController(
+      text: c != null 
+          ? c.sessionFee.toStringAsFixed(0) 
+          : (widget.data.accounts.current?.defaultSessionFee.toStringAsFixed(0) ?? '0')
+    );
+    _tags = TextEditingController(text: (c?.tags ?? []).join(', '));
+    _notes = TextEditingController(text: c?.notes ?? '');
+    _birthDate = c?.birthDate ?? '';
+    _gender = c?.gender ?? '';
+    _status = c?.status ?? 'active';
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _email.dispose();
+    _phone.dispose();
+    _sessionFee.dispose();
+    _tags.dispose();
+    _notes.dispose();
+    super.dispose();
+  }
+
+  bool _isEmail(String v) {
+    final m = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    return m.hasMatch(v);
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final initial = DateTime.tryParse(
+        _birthDate.length >= 10 ? _birthDate.substring(0, 10) : '');
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial ?? DateTime(now.year - 30, now.month, now.day),
+      firstDate: DateTime(1900),
+      lastDate: now,
+    );
+    if (picked != null) {
+      setState(() {
+        _birthDate = '${picked.year.toString().padLeft(4, '0')}-'
+            '${picked.month.toString().padLeft(2, '0')}-'
+            '${picked.day.toString().padLeft(2, '0')}';
+      });
+    }
+  }
+
+  void _save() {
+    final name = _name.text.trim();
+    final email = _email.text.trim();
+    if (name.isEmpty) {
+      setState(() => _error = 'Danışan adı gereklidir.');
+      return;
+    }
+    if (!_isEmail(email)) {
+      setState(() => _error = 'Geçerli bir e-posta girin.');
+      return;
+    }
+    final now = DateTime.now().millisecondsSinceEpoch.toDouble();
+    final existing = widget.existing;
+    final tags = _tags.text
+        .split(',')
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
+    final sessionFee = double.tryParse(_sessionFee.text.trim()) ?? 0.0;
+    if (existing != null) {
+      existing.name = name;
+      existing.email = email;
+      existing.phone = _phone.text.trim();
+      existing.birthDate = _birthDate;
+      existing.gender = _gender;
+      existing.sessionFee = sessionFee;
+      existing.tags
+        ..clear()
+        ..addAll(tags);
+      existing.notes = _notes.text.trim();
+      existing.status = _status;
+      existing.updatedAt = now;
+    } else {
+      widget.data.data.clients.add(Client(
+        id: widget.data.newId(),
+        name: name,
+        email: email,
+        phone: _phone.text.trim(),
+        birthDate: _birthDate,
+        gender: _gender,
+        sessionFee: sessionFee,
+        tags: tags,
+        notes: _notes.text.trim(),
+        status: _status,
+      ));
+    }
+    widget.data.save();
+    Navigator.of(context).pop(true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radius)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560, maxHeight: 680),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 12, 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.existing != null
+                          ? 'Danışanı Düzenle'
+                          : 'Yeni Danışan',
+                      style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.text),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Kapat',
+                    onPressed: () => Navigator.of(context).pop(false),
+                    icon: const Icon(Icons.close, color: AppColors.muted),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: _name,
+                      decoration: const InputDecoration(
+                        labelText: 'Ad Soyad *',
+                        hintText: 'Örn: Ahmet Yılmaz',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _email,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: const InputDecoration(
+                              labelText: 'E-posta *',
+                              hintText: 'ornek@email.com',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: _phone,
+                            keyboardType: TextInputType.phone,
+                            decoration: const InputDecoration(
+                              labelText: 'Telefon',
+                              hintText: '05XX XXX XXXX',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: _pickDate,
+                            borderRadius: BorderRadius.circular(10),
+                            child: InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: 'Doğum Tarihi',
+                                suffixIcon: Icon(Icons.calendar_today,
+                                    size: 17),
+                              ),
+                              child: Text(
+                                _birthDate.isEmpty
+                                    ? 'Seçilmedi'
+                                    : _birthDate,
+                                style: TextStyle(
+                                    fontSize: 14,
+                                    color: _birthDate.isEmpty
+                                        ? AppColors.muted
+                                        : AppColors.text),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _gender,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Cinsiyet',
+                              isDense: true,
+                            ),
+                            items: const [
+                              DropdownMenuItem(value: '', child: Text('Belirtilmedi')),
+                              DropdownMenuItem(value: 'Kadın', child: Text('Kadın')),
+                              DropdownMenuItem(value: 'Erkek', child: Text('Erkek')),
+                              DropdownMenuItem(value: 'Diğer', child: Text('Diğer')),
+                              DropdownMenuItem(
+                                  value: 'Belirtmek istemiyorum',
+                                  child: Text('Belirtmek istemiyorum')),
+                            ],
+                            onChanged: (v) => setState(() => _gender = v ?? ''),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _sessionFee,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: const InputDecoration(
+                              labelText: 'Seans Ücreti (₺)',
+                              hintText: 'Örn: 500',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: _tags,
+                            decoration: const InputDecoration(
+                              labelText: 'Etiketler',
+                              hintText: 'Örn: kaygı, bireysel',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: _status,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Durum',
+                        isDense: true,
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'active', child: Text('Aktif')),
+                        DropdownMenuItem(
+                            value: 'paused', child: Text('Tedaviye Ara Verildi')),
+                        DropdownMenuItem(value: 'archived', child: Text('Arşivlendi')),
+                      ],
+                      onChanged: (v) => setState(() => _status = v ?? 'active'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _notes,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Danışan hakkında notlar',
+                        hintText: 'Danışan hakkında notlar...',
+                      ),
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.dangerSoft,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline,
+                                size: 18, color: AppColors.danger),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _error!,
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.danger),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('İptal',
+                        style: TextStyle()),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton.icon(
+                    onPressed: _save,
+                    icon: const Icon(Icons.save_outlined, size: 16),
+                    label: const Text('Kaydet',
+                        style: TextStyle()),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
