@@ -105,7 +105,6 @@ FormEntry _buildPhq9(String Function() id) {
     id: id(),
     title: 'PHQ-9 Depresyon Tarama Formu',
     description: 'Son iki haftada ne sıklıkta rahatsız olduğunuzu işaretleyin. Klinik tanı yerine geçmez.',
-    diagnosisCodes: const ['F32.A'],
     questions: [
       for (var i = 0; i < questions.length; i++)
         FormQuestion(
@@ -146,7 +145,6 @@ FormEntry _buildGad7(String Function() id) {
     id: id(),
     title: 'GAD-7 Anksiyete Tarama Formu',
     description: 'Son iki haftadaki anksiyete belirtilerinin kısa taraması. Klinik tanı yerine geçmez.',
-    diagnosisCodes: const ['F41.1'],
     questions: [
       for (var i = 0; i < questions.length; i++)
         FormQuestion(

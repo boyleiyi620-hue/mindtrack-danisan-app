@@ -4,11 +4,14 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
+import 'data/diagnosis_codes.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (error) {
     debugPrint('Firebase init error: $error');
   }
@@ -45,7 +48,9 @@ class AuthGate extends StatelessWidget {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
         if (!snapshot.hasData) return const LoginScreen();
         return const ClientShell();
@@ -115,7 +120,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -212,10 +218,15 @@ class _ClientShellState extends State<ClientShell> {
     if (uid == null) return const LoginScreen();
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('patients').doc(uid).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('patients')
+          .doc(uid)
+          .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
         final patient = snapshot.data?.data() ?? <String, dynamic>{};
         if (patient['consented'] != true) return const ConsentScreen();
@@ -316,7 +327,8 @@ class _ConsentScreenState extends State<ConsentScreen> {
                 ),
                 CheckboxListTile(
                   value: _agreed,
-                  onChanged: (value) => setState(() => _agreed = value ?? false),
+                  onChanged: (value) =>
+                      setState(() => _agreed = value ?? false),
                   title: const Text('Okudum, onaylıyorum'),
                 ),
                 SizedBox(
@@ -388,15 +400,13 @@ class _PairingScreenState extends State<PairingScreen> {
       }, SetOptions(merge: true));
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Eşleşme Başarılı!')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Eşleşme Başarılı!')));
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Hata: $error')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Hata: $error')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -446,7 +456,11 @@ class _PairingScreenState extends State<PairingScreen> {
 }
 
 class ClientOverview extends StatelessWidget {
-  const ClientOverview({super.key, required this.patient, required this.psychologistId});
+  const ClientOverview({
+    super.key,
+    required this.patient,
+    required this.psychologistId,
+  });
 
   final Map<String, dynamic> patient;
   final String psychologistId;
@@ -476,7 +490,9 @@ class ClientOverview extends StatelessWidget {
                 child: Icon(Icons.calendar_month, color: Colors.teal),
               ),
               title: const Text('Randevu'),
-              subtitle: const Text('Yeni randevu talebi gönderin ve durumunu takip edin.'),
+              subtitle: const Text(
+                'Yeni randevu talebi gönderin ve durumunu takip edin.',
+              ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => _selectTab(context, 1),
             ),
@@ -488,11 +504,37 @@ class ClientOverview extends StatelessWidget {
                 child: Icon(Icons.assignment, color: Colors.teal),
               ),
               title: const Text('Formlar ve Ödevler'),
-              subtitle: const Text('Psikoloğunuzun gönderdiği formları doldurun.'),
+              subtitle: const Text(
+                'Psikoloğunuzun gönderdiği formları doldurun.',
+              ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => _selectTab(context, 2),
             ),
           ),
+          if (_patientDiagnosisCodes(patient).isNotEmpty)
+            Card(
+              child: ExpansionTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFE0F2F1),
+                  child: Icon(
+                    Icons.local_hospital_outlined,
+                    color: Colors.teal,
+                  ),
+                ),
+                title: const Text('Tanı Kodları'),
+                subtitle: Text(
+                  '${_patientDiagnosisCodes(patient).length} kod atanmış',
+                ),
+                children: [
+                  for (final code in _patientDiagnosisCodes(patient))
+                    ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.label_outline, size: 18),
+                      title: Text(_diagnosisDisplay(code)),
+                    ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -505,7 +547,11 @@ class ClientOverview extends StatelessWidget {
 }
 
 class ClientAppointments extends StatelessWidget {
-  const ClientAppointments({super.key, required this.patient, required this.psychologistId});
+  const ClientAppointments({
+    super.key,
+    required this.patient,
+    required this.psychologistId,
+  });
 
   final Map<String, dynamic> patient;
   final String psychologistId;
@@ -536,13 +582,19 @@ class ClientAppointments extends StatelessWidget {
         stream: stream,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Randevular yüklenemedi: ${snapshot.error}'));
+            return Center(
+              child: Text('Randevular yüklenemedi: ${snapshot.error}'),
+            );
           }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
           final docs = [...snapshot.data!.docs]
-            ..sort((a, b) => _appointmentDate(a.data()).compareTo(_appointmentDate(b.data())));
+            ..sort(
+              (a, b) =>
+                  _appointmentDate(a.data())
+                      .compareTo(_appointmentDate(b.data())),
+            );
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -561,7 +613,9 @@ class ClientAppointments extends StatelessWidget {
                 const Card(
                   child: Padding(
                     padding: EdgeInsets.all(20),
-                    child: Text('Henüz randevunuz veya bekleyen talebiniz bulunmuyor.'),
+                    child: Text(
+                      'Henüz randevunuz veya bekleyen talebiniz bulunmuyor.',
+                    ),
                   ),
                 )
               else
@@ -573,7 +627,10 @@ class ClientAppointments extends StatelessWidget {
     );
   }
 
-  Widget _appointmentCard(BuildContext context, DocumentSnapshot<Map<String, dynamic>> doc) {
+  Widget _appointmentCard(
+    BuildContext context,
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     final data = doc.data() ?? <String, dynamic>{};
     final date = _appointmentDate(data);
     final status = data['status']?.toString() ?? 'pending';
@@ -582,8 +639,8 @@ class ClientAppointments extends StatelessWidget {
     final color = status == 'approved' || status == 'planned'
         ? Colors.green
         : status == 'rejected' || status == 'cancelled'
-            ? Colors.grey
-            : Colors.orange;
+        ? Colors.grey
+        : Colors.orange;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -611,7 +668,11 @@ class ClientAppointments extends StatelessWidget {
     );
     if (result == true && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Randevu talebi gönderildi. Psikolog onayı bekleniyor.')),
+        const SnackBar(
+          content: Text(
+            'Randevu talebi gönderildi. Psikolog onayı bekleniyor.',
+          ),
+        ),
       );
     }
   }
@@ -629,24 +690,29 @@ class ClientAppointments extends StatelessWidget {
         .doc(psychologistId)
         .collection('appointments')
         .add({
-      'clientFirebaseUid': uid,
-      'clientName': identity.name,
-      'clientFirstName': identity.firstName,
-      'clientLastName': identity.lastName,
-      'clientEmail': identity.email,
-      'date': Timestamp.fromDate(selectedDateTime),
-      'status': 'pending',
-      'createdAt': FieldValue.serverTimestamp(),
-      'type': 'request',
-    });
+          'clientFirebaseUid': uid,
+          'clientName': identity.name,
+          'clientFirstName': identity.firstName,
+          'clientLastName': identity.lastName,
+          'clientEmail': identity.email,
+          'date': Timestamp.fromDate(selectedDateTime),
+          'status': 'pending',
+          'createdAt': FieldValue.serverTimestamp(),
+          'type': 'request',
+        });
   }
 
-  Future<void> _cancelRequest(BuildContext context, DocumentReference<Map<String, dynamic>> ref) async {
+  Future<void> _cancelRequest(
+    BuildContext context,
+    DocumentReference<Map<String, dynamic>> ref,
+  ) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Randevu talebini iptal et'),
-        content: const Text('Bu randevu talebini iptal etmek istediğinize emin misiniz?'),
+        content: const Text(
+          'Bu randevu talebini iptal etmek istediğinize emin misiniz?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -662,9 +728,8 @@ class ClientAppointments extends StatelessWidget {
     if (ok == true) {
       await ref.update({'status': 'cancelled'});
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Talep iptal edildi.')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Talep iptal edildi.')));
       }
     }
   }
@@ -676,7 +741,8 @@ class AppointmentRequestDialog extends StatefulWidget {
   final Future<void> Function(DateTime dateTime) onSubmit;
 
   @override
-  State<AppointmentRequestDialog> createState() => _AppointmentRequestDialogState();
+  State<AppointmentRequestDialog> createState() =>
+      _AppointmentRequestDialogState();
 }
 
 class _AppointmentRequestDialogState extends State<AppointmentRequestDialog> {
@@ -713,13 +779,9 @@ class _AppointmentRequestDialogState extends State<AppointmentRequestDialog> {
       _error = null;
     });
     try {
-      await widget.onSubmit(DateTime(
-        _date.year,
-        _date.month,
-        _date.day,
-        _time.hour,
-        _time.minute,
-      ));
+      await widget.onSubmit(
+        DateTime(_date.year, _date.month, _date.day, _time.hour, _time.minute),
+      );
       if (mounted) Navigator.pop(context, true);
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
@@ -778,7 +840,11 @@ class _AppointmentRequestDialogState extends State<AppointmentRequestDialog> {
 }
 
 class ClientHomeworks extends StatelessWidget {
-  const ClientHomeworks({super.key, required this.patient, required this.psychologistId});
+  const ClientHomeworks({
+    super.key,
+    required this.patient,
+    required this.psychologistId,
+  });
 
   final Map<String, dynamic> patient;
   final String psychologistId;
@@ -798,14 +864,18 @@ class ClientHomeworks extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Formlar yüklenemedi: ${snapshot.error}'));
+            return Center(
+              child: Text('Formlar yüklenemedi: ${snapshot.error}'),
+            );
           }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
           final docs = snapshot.data!.docs;
           if (docs.isEmpty) {
-            return const Center(child: Text('Henüz atanmış form veya ödev yok.'));
+            return const Center(
+              child: Text('Henüz atanmış form veya ödev yok.'),
+            );
           }
           return ListView.builder(
             padding: const EdgeInsets.all(8),
@@ -814,7 +884,10 @@ class ClientHomeworks extends StatelessWidget {
               final data = docs[index].data();
               final done = data['done'] == true;
               final draft = _mapValue(data['formDraft']);
-              final title = data['title']?.toString() ?? draft['title']?.toString() ?? 'Form';
+              final title =
+                  data['title']?.toString() ??
+                  draft['title']?.toString() ??
+                  'Form';
               return Card(
                 margin: const EdgeInsets.all(8),
                 child: ListTile(
@@ -842,7 +915,9 @@ class ClientHomeworks extends StatelessWidget {
     final draft = _mapValue(task['formDraft']);
     if (draft.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bu görevde doldurulabilir bir form bulunmuyor.')),
+        const SnackBar(
+          content: Text('Bu görevde doldurulabilir bir form bulunmuyor.'),
+        ),
       );
       return;
     }
@@ -926,7 +1001,10 @@ class _ClientFormDialogState extends State<ClientFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.draft['title']?.toString() ?? widget.taskData['title']?.toString() ?? 'Form';
+    final title =
+        widget.draft['title']?.toString() ??
+        widget.taskData['title']?.toString() ??
+        'Form';
     return AlertDialog(
       title: Text(title),
       content: SizedBox(
@@ -995,7 +1073,10 @@ class _ClientFormDialogState extends State<ClientFormDialog> {
             children: [
               Expanded(
                 child: ChoiceChip(
-                  label: const SizedBox(width: double.infinity, child: Center(child: Text('Evet'))),
+                  label: const SizedBox(
+                    width: double.infinity,
+                    child: Center(child: Text('Evet')),
+                  ),
                   selected: answer == 'Evet',
                   onSelected: (_) => setState(() => _answers[id] = 'Evet'),
                 ),
@@ -1003,7 +1084,10 @@ class _ClientFormDialogState extends State<ClientFormDialog> {
               const SizedBox(width: 10),
               Expanded(
                 child: ChoiceChip(
-                  label: const SizedBox(width: double.infinity, child: Center(child: Text('Hayır'))),
+                  label: const SizedBox(
+                    width: double.infinity,
+                    child: Center(child: Text('Hayır')),
+                  ),
                   selected: answer == 'Hayır',
                   onSelected: (_) => setState(() => _answers[id] = 'Hayır'),
                 ),
@@ -1026,7 +1110,11 @@ class _ClientFormDialogState extends State<ClientFormDialog> {
     );
   }
 
-  List<Widget> _multipleChoice(Map<String, dynamic> question, String id, dynamic answer) {
+  List<Widget> _multipleChoice(
+    Map<String, dynamic> question,
+    String id,
+    dynamic answer,
+  ) {
     final options = _listValue(question['options']);
     return [
       for (final option in options)
@@ -1040,9 +1128,15 @@ class _ClientFormDialogState extends State<ClientFormDialog> {
     ];
   }
 
-  Widget _scaleWidget(Map<String, dynamic> question, String id, dynamic answer) {
+  Widget _scaleWidget(
+    Map<String, dynamic> question,
+    String id,
+    dynamic answer,
+  ) {
     final max = (question['scaleMax'] as num?)?.toDouble() ?? 5;
-    final current = ((answer as num?)?.toDouble() ?? 1).clamp(1, max).toDouble();
+    final current = ((answer as num?)?.toDouble() ?? 1)
+        .clamp(1, max)
+        .toDouble();
     return Column(
       children: [
         Slider(
@@ -1112,9 +1206,8 @@ class _ClientProfileState extends State<ClientProfile> {
         'email': _email.text.trim(),
       }, SetOptions(merge: true));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profil kaydedildi.')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Profil kaydedildi.')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -1130,18 +1223,27 @@ class _ClientProfileState extends State<ClientProfile> {
         children: [
           TextField(
             controller: _firstName,
-            decoration: const InputDecoration(labelText: 'Ad', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+              labelText: 'Ad',
+              border: OutlineInputBorder(),
+            ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _lastName,
-            decoration: const InputDecoration(labelText: 'Soyad', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+              labelText: 'Soyad',
+              border: OutlineInputBorder(),
+            ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _email,
             readOnly: true,
-            decoration: const InputDecoration(labelText: 'E-posta', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+              labelText: 'E-posta',
+              border: OutlineInputBorder(),
+            ),
           ),
           const SizedBox(height: 18),
           FilledButton.icon(
@@ -1177,11 +1279,7 @@ class _RequestIdentity {
 
 _RequestIdentity _requestIdentity(Map<String, dynamic> patient) {
   final user = FirebaseAuth.instance.currentUser;
-  final email = _firstNonEmpty([
-    patient['email']?.toString(),
-    user?.email,
-    '',
-  ]);
+  final email = _firstNonEmpty([patient['email']?.toString(), user?.email, '']);
   final storedFirst = patient['firstName']?.toString().trim() ?? '';
   final storedLast = patient['lastName']?.toString().trim() ?? '';
   final storedName = _firstNonEmpty([
@@ -1190,7 +1288,10 @@ _RequestIdentity _requestIdentity(Map<String, dynamic> patient) {
     user?.displayName,
     '',
   ]);
-  final parts = storedName.split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+  final parts = storedName
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .toList();
   final first = _firstNonEmpty([
     storedFirst,
     parts.isEmpty ? '' : parts.first,
@@ -1213,7 +1314,22 @@ _RequestIdentity _requestIdentity(Map<String, dynamic> patient) {
   );
 }
 
-String _patientName(Map<String, dynamic> patient) => _requestIdentity(patient).name;
+String _patientName(Map<String, dynamic> patient) =>
+    _requestIdentity(patient).name;
+
+List<String> _patientDiagnosisCodes(Map<String, dynamic> patient) {
+  return _listValue(patient['diagnosisCodes'])
+      .map((value) => value.toString())
+      .where((value) => value.trim().isNotEmpty)
+      .toList();
+}
+
+String _diagnosisDisplay(String code) {
+  for (final item in diagnosisCodes) {
+    if (item.code == code) return item.display;
+  }
+  return code;
+}
 
 String _firstNonEmpty(Iterable<String?> values) {
   for (final value in values) {
@@ -1225,11 +1341,14 @@ String _firstNonEmpty(Iterable<String?> values) {
 
 Map<String, dynamic> _mapValue(dynamic value) {
   if (value is Map<String, dynamic>) return Map<String, dynamic>.from(value);
-  if (value is Map) return value.map((key, val) => MapEntry(key.toString(), val));
+  if (value is Map) {
+    return value.map((key, val) => MapEntry(key.toString(), val));
+  }
   return <String, dynamic>{};
 }
 
-List<dynamic> _listValue(dynamic value) => value is List ? value : const <dynamic>[];
+List<dynamic> _listValue(dynamic value) =>
+    value is List ? value : const <dynamic>[];
 
 DateTime _appointmentDate(Map<String, dynamic> data) {
   final raw = data['date'];
@@ -1259,7 +1378,8 @@ String _appointmentStatusLabel(String status) {
   }
 }
 
-String _formatDateTime(DateTime value) => '${_formatDate(value)} · ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+String _formatDateTime(DateTime value) =>
+    '${_formatDate(value)} · ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
 
 String _formatDate(DateTime value) {
   const months = [

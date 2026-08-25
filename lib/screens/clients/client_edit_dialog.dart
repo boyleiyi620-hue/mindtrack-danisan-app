@@ -1,8 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/data_store.dart';
+import '../../data/diagnosis_codes.dart';
 import '../../models/client.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/diagnosis_picker.dart';
 
 /// Yeni danışan ekleme / mevcut danışanı düzenleme penceresi.
 class ClientEditDialog extends StatefulWidget {
@@ -25,6 +28,7 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
   String _birthDate = '';
   String _gender = '';
   String _status = 'active';
+  late final List<String> _diagnosisCodes;
   String? _error;
 
   @override
@@ -35,15 +39,19 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
     _email = TextEditingController(text: c?.email ?? '');
     _phone = TextEditingController(text: c?.phone ?? '');
     _sessionFee = TextEditingController(
-      text: c != null 
-          ? c.sessionFee.toStringAsFixed(0) 
-          : (widget.data.accounts.current?.defaultSessionFee.toStringAsFixed(0) ?? '0')
+      text: c != null
+          ? c.sessionFee.toStringAsFixed(0)
+          : (widget.data.accounts.current?.defaultSessionFee.toStringAsFixed(
+                  0,
+                ) ??
+                '0'),
     );
     _tags = TextEditingController(text: (c?.tags ?? []).join(', '));
     _notes = TextEditingController(text: c?.notes ?? '');
     _birthDate = c?.birthDate ?? '';
     _gender = c?.gender ?? '';
     _status = c?.status ?? 'active';
+    _diagnosisCodes = List.of(c?.diagnosisCodes ?? const <String>[]);
   }
 
   @override
@@ -65,7 +73,8 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final initial = DateTime.tryParse(
-        _birthDate.length >= 10 ? _birthDate.substring(0, 10) : '');
+      _birthDate.length >= 10 ? _birthDate.substring(0, 10) : '',
+    );
     final picked = await showDatePicker(
       context: context,
       initialDate: initial ?? DateTime(now.year - 30, now.month, now.day),
@@ -74,14 +83,15 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
     );
     if (picked != null) {
       setState(() {
-        _birthDate = '${picked.year.toString().padLeft(4, '0')}-'
+        _birthDate =
+            '${picked.year.toString().padLeft(4, '0')}-'
             '${picked.month.toString().padLeft(2, '0')}-'
             '${picked.day.toString().padLeft(2, '0')}';
       });
     }
   }
 
-  void _save() {
+  Future<void> _save() async {
     final name = _name.text.trim();
     final email = _email.text.trim();
     if (name.isEmpty) {
@@ -112,30 +122,61 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
         ..addAll(tags);
       existing.notes = _notes.text.trim();
       existing.status = _status;
+      existing.diagnosisCodes
+        ..clear()
+        ..addAll(_diagnosisCodes);
       existing.updatedAt = now;
     } else {
-      widget.data.data.clients.add(Client(
-        id: widget.data.newId(),
-        name: name,
-        email: email,
-        phone: _phone.text.trim(),
-        birthDate: _birthDate,
-        gender: _gender,
-        sessionFee: sessionFee,
-        tags: tags,
-        notes: _notes.text.trim(),
-        status: _status,
-      ));
+      widget.data.data.clients.add(
+        Client(
+          id: widget.data.newId(),
+          name: name,
+          email: email,
+          phone: _phone.text.trim(),
+          birthDate: _birthDate,
+          gender: _gender,
+          sessionFee: sessionFee,
+          tags: tags,
+          diagnosisCodes: List.of(_diagnosisCodes),
+          notes: _notes.text.trim(),
+          status: _status,
+        ),
+      );
     }
     widget.data.save();
-    Navigator.of(context).pop(true);
+    final clientUserId = existing?.clientUserId ?? '';
+    if (clientUserId.isNotEmpty) {
+      await FirebaseFirestore.instance
+          .collection('patients')
+          .doc(clientUserId)
+          .set({
+            'diagnosisCodes': List.of(_diagnosisCodes),
+          }, SetOptions(merge: true));
+    }
+    if (mounted) Navigator.of(context).pop(true);
+  }
+
+  Future<void> _pickDiagnosisCodes() async {
+    final result = await showDialog<List<String>>(
+      context: context,
+      builder: (_) => DiagnosisCodePickerDialog(initialCodes: _diagnosisCodes),
+    );
+    if (result != null) {
+      setState(() {
+        _diagnosisCodes
+          ..clear()
+          ..addAll(result);
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radius)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radius),
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560, maxHeight: 680),
         child: Column(
@@ -150,9 +191,10 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
                           ? 'Danışanı Düzenle'
                           : 'Yeni Danışan',
                       style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.text),
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -215,18 +257,19 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
                             child: InputDecorator(
                               decoration: const InputDecoration(
                                 labelText: 'Doğum Tarihi',
-                                suffixIcon: Icon(Icons.calendar_today,
-                                    size: 17),
+                                suffixIcon: Icon(
+                                  Icons.calendar_today,
+                                  size: 17,
+                                ),
                               ),
                               child: Text(
-                                _birthDate.isEmpty
-                                    ? 'Seçilmedi'
-                                    : _birthDate,
+                                _birthDate.isEmpty ? 'Seçilmedi' : _birthDate,
                                 style: TextStyle(
-                                    fontSize: 14,
-                                    color: _birthDate.isEmpty
-                                        ? AppColors.muted
-                                        : AppColors.text),
+                                  fontSize: 14,
+                                  color: _birthDate.isEmpty
+                                      ? AppColors.muted
+                                      : AppColors.text,
+                                ),
                               ),
                             ),
                           ),
@@ -241,13 +284,26 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
                               isDense: true,
                             ),
                             items: const [
-                              DropdownMenuItem(value: '', child: Text('Belirtilmedi')),
-                              DropdownMenuItem(value: 'Kadın', child: Text('Kadın')),
-                              DropdownMenuItem(value: 'Erkek', child: Text('Erkek')),
-                              DropdownMenuItem(value: 'Diğer', child: Text('Diğer')),
                               DropdownMenuItem(
-                                  value: 'Belirtmek istemiyorum',
-                                  child: Text('Belirtmek istemiyorum')),
+                                value: '',
+                                child: Text('Belirtilmedi'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Kadın',
+                                child: Text('Kadın'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Erkek',
+                                child: Text('Erkek'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Diğer',
+                                child: Text('Diğer'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Belirtmek istemiyorum',
+                                child: Text('Belirtmek istemiyorum'),
+                              ),
                             ],
                             onChanged: (v) => setState(() => _gender = v ?? ''),
                           ),
@@ -260,7 +316,9 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
                         Expanded(
                           child: TextField(
                             controller: _sessionFee,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
                             decoration: const InputDecoration(
                               labelText: 'Seans Ücreti (₺)',
                               hintText: 'Örn: 500',
@@ -290,11 +348,18 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
                       items: const [
                         DropdownMenuItem(value: 'active', child: Text('Aktif')),
                         DropdownMenuItem(
-                            value: 'paused', child: Text('Tedaviye Ara Verildi')),
-                        DropdownMenuItem(value: 'archived', child: Text('Arşivlendi')),
+                          value: 'paused',
+                          child: Text('Tedaviye Ara Verildi'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'archived',
+                          child: Text('Arşivlendi'),
+                        ),
                       ],
                       onChanged: (v) => setState(() => _status = v ?? 'active'),
                     ),
+                    const SizedBox(height: 12),
+                    _diagnosisSection(),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _notes,
@@ -314,15 +379,19 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.error_outline,
-                                size: 18, color: AppColors.danger),
+                            const Icon(
+                              Icons.error_outline,
+                              size: 18,
+                              color: AppColors.danger,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 _error!,
                                 style: const TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.danger),
+                                  fontSize: 13,
+                                  color: AppColors.danger,
+                                ),
                               ),
                             ),
                           ],
@@ -341,15 +410,13 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text('İptal',
-                        style: TextStyle()),
+                    child: const Text('İptal', style: TextStyle()),
                   ),
                   const SizedBox(width: 8),
                   FilledButton.icon(
                     onPressed: _save,
                     icon: const Icon(Icons.save_outlined, size: 16),
-                    label: const Text('Kaydet',
-                        style: TextStyle()),
+                    label: const Text('Kaydet', style: TextStyle()),
                   ),
                 ],
               ),
@@ -358,5 +425,75 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
         ),
       ),
     );
+  }
+
+  Widget _diagnosisSection() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primarySoft,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.primary.withValues(alpha: .24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Danışan Tanı Kodları',
+                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _pickDiagnosisCodes,
+                icon: const Icon(Icons.add, size: 15),
+                label: const Text('Tanı Kodu Ekle'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'DSM-5-TR / ICD-10-CM kataloğundan bu danışana atanacak kodları seçin.',
+            style: TextStyle(fontSize: 11.5, color: AppColors.muted),
+          ),
+          if (_diagnosisCodes.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                'Henüz tanı kodu eklenmedi.',
+                style: TextStyle(fontSize: 12, color: AppColors.muted),
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final code in _diagnosisCodes)
+                    Tooltip(
+                      message: _diagnosisLabel(code),
+                      child: InputChip(
+                        label: Text(code, style: const TextStyle(fontSize: 11)),
+                        onDeleted: () =>
+                            setState(() => _diagnosisCodes.remove(code)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _diagnosisLabel(String code) {
+    for (final item in diagnosisCodes) {
+      if (item.code == code) return item.display;
+    }
+    return code;
   }
 }

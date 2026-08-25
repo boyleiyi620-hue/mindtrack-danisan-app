@@ -11,7 +11,6 @@ import '../../models/form_entry.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formats.dart';
 import '../../utils/scoring.dart';
-import '../../widgets/diagnosis_picker.dart';
 
 /// Değerlendirme Formları — form oluşturma, düzenleme, kopyalama, silme ve doldurma.
 class FormsTab extends StatefulWidget {
@@ -291,11 +290,6 @@ class _FormsTabState extends State<FormsTab> {
             runSpacing: 6,
             children: [
               _miniStat(Icons.list_alt, '${f.questions.length} soru'),
-              if (f.diagnosisCodes.isNotEmpty)
-                _miniStat(
-                  Icons.local_hospital_outlined,
-                  '${f.diagnosisCodes.length} tanı kodu',
-                ),
               _miniStat(
                 Icons.assignment_turned_in_outlined,
                 '$n değerlendirme',
@@ -450,7 +444,6 @@ class _FormsTabState extends State<FormsTab> {
       title: '${f.title} (Kopya)',
       description: f.description,
       isActive: false,
-      diagnosisCodes: List.of(f.diagnosisCodes),
     );
     for (var i = 0; i < f.questions.length; i++) {
       final q = f.questions[i];
@@ -567,7 +560,6 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
   late final TextEditingController _desc;
   late bool _active;
   late final List<_QDraft> _qs;
-  late final List<String> _diagnosisCodes;
   String? _error;
 
   DataStore get _data => widget.data;
@@ -579,7 +571,6 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
     _title = TextEditingController(text: f?.title ?? '');
     _desc = TextEditingController(text: f?.description ?? '');
     _active = f?.isActive ?? true;
-    _diagnosisCodes = List.of(f?.diagnosisCodes ?? const <String>[]);
     _qs = [
       for (final q in f?.questions ?? <FormQuestion>[])
         _QDraft(
@@ -631,9 +622,6 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
       existing.title = title;
       existing.description = _desc.text.trim();
       existing.isActive = _active;
-      existing.diagnosisCodes
-        ..clear()
-        ..addAll(_diagnosisCodes);
       existing.updatedAt = now;
       existing.questions
         ..clear()
@@ -645,7 +633,6 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
           title: title,
           description: _desc.text.trim(),
           isActive: _active,
-          diagnosisCodes: List.of(_diagnosisCodes),
           questions: [
             for (var i = 0; i < _qs.length; i++) _qs[i].toQuestion(i),
           ],
@@ -731,8 +718,6 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
                       value: _active,
                       onChanged: (v) => setState(() => _active = v),
                     ),
-                    const SizedBox(height: 6),
-                    _diagnosisCodesSection(),
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -833,71 +818,6 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
         ),
       ),
     );
-  }
-
-  Widget _diagnosisCodesSection() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.primarySoft,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.primary.withValues(alpha: .24)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'DSM-5-TR / ICD-10-CM tanı kodları',
-                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
-                ),
-              ),
-              OutlinedButton.icon(
-                onPressed: _pickDiagnosisCodes,
-                icon: const Icon(Icons.add, size: 15),
-                label: const Text('Kod Ekle'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Formu ilişkilendirmek istediğiniz tanı kodlarını arayarak seçin. Kod listesi DSM-5-TR ile kullanılan ICD-10-CM kataloğunu içerir.',
-            style: TextStyle(fontSize: 11.5, color: AppColors.muted),
-          ),
-          if (_diagnosisCodes.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final code in _diagnosisCodes)
-                  InputChip(
-                    label: Text(code, style: const TextStyle(fontSize: 11)),
-                    onDeleted: () =>
-                        setState(() => _diagnosisCodes.remove(code)),
-                  ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Future<void> _pickDiagnosisCodes() async {
-    final result = await showDialog<List<String>>(
-      context: context,
-      builder: (_) => DiagnosisCodePickerDialog(initialCodes: _diagnosisCodes),
-    );
-    if (result != null) {
-      setState(() {
-        _diagnosisCodes
-          ..clear()
-          ..addAll(result);
-      });
-    }
   }
 
   Widget _questionCard(BuildContext context, int i) {
@@ -1257,7 +1177,8 @@ class ReadyFormLibraryDialog extends StatelessWidget {
               child: ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemCount: formPresets.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 10),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 10),
                 itemBuilder: (context, index) {
                   final preset = formPresets[index];
                   return Container(
