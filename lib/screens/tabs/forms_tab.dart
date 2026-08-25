@@ -1,12 +1,17 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/data_store.dart';
+import '../../data/form_presets.dart';
 import '../../models/app_data.dart';
 import '../../models/assessment.dart';
 import '../../models/form_entry.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formats.dart';
 import '../../utils/scoring.dart';
+import '../../widgets/diagnosis_picker.dart';
 
 /// Değerlendirme Formları — form oluşturma, düzenleme, kopyalama, silme ve doldurma.
 class FormsTab extends StatefulWidget {
@@ -31,8 +36,10 @@ class _FormsTabState extends State<FormsTab> {
       return f.title.toLowerCase().contains(q) ||
           f.description.toLowerCase().contains(q);
     }).toList();
-    final totalQuestions =
-        _d.forms.fold<int>(0, (s, f) => s + f.questions.length);
+    final totalQuestions = _d.forms.fold<int>(
+      0,
+      (s, f) => s + f.questions.length,
+    );
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(18),
@@ -69,8 +76,8 @@ class _FormsTabState extends State<FormsTab> {
                       final cols = bc.maxWidth >= 980
                           ? 3
                           : bc.maxWidth >= 640
-                              ? 2
-                              : 1;
+                          ? 2
+                          : 1;
                       final gap = 14.0;
                       final cardW = (bc.maxWidth - gap * (cols - 1)) / cols;
                       return Wrap(
@@ -78,7 +85,10 @@ class _FormsTabState extends State<FormsTab> {
                         runSpacing: gap,
                         children: [
                           for (final f in forms)
-                            SizedBox(width: cardW, child: _formCard(context, f)),
+                            SizedBox(
+                              width: cardW,
+                              child: _formCard(context, f),
+                            ),
                         ],
                       );
                     },
@@ -86,15 +96,12 @@ class _FormsTabState extends State<FormsTab> {
                 const SizedBox(height: 12),
                 const Row(
                   children: [
-                    Icon(Icons.info_outline,
-                        size: 14, color: AppColors.muted),
+                    Icon(Icons.info_outline, size: 14, color: AppColors.muted),
                     SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         'Formlar danışanlarınızın değerlendirilmesi için kullanılır; doldurulan her form Sonuçlar sekmesinde analiz edilir.',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.muted),
+                        style: TextStyle(fontSize: 12, color: AppColors.muted),
                       ),
                     ),
                   ],
@@ -120,9 +127,10 @@ class _FormsTabState extends State<FormsTab> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.text),
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -133,19 +141,34 @@ class _FormsTabState extends State<FormsTab> {
             ),
           ],
         );
-        final action = FilledButton.icon(
-          onPressed: () => _openEditor(context),
-          icon: const Icon(Icons.add, size: 17),
-          label: const Text('Yeni Form', style: TextStyle()),
+        final actions = Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => _openPresetLibrary(context),
+              icon: const Icon(Icons.library_add_outlined, size: 17),
+              label: const Text('Hazır Form Ekle', style: TextStyle()),
+            ),
+            FilledButton.icon(
+              onPressed: () => _openEditor(context),
+              icon: const Icon(Icons.add, size: 17),
+              label: const Text('Yeni Form', style: TextStyle()),
+            ),
+          ],
         );
         return compact
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [title, const SizedBox(height: 12), action],
+                children: [title, const SizedBox(height: 12), actions],
               )
             : Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [Expanded(child: title), action],
+                children: [
+                  Expanded(child: title),
+                  const SizedBox(width: 12),
+                  actions,
+                ],
               );
       },
     );
@@ -164,30 +187,32 @@ class _FormsTabState extends State<FormsTab> {
                 color: AppColors.primarySoft,
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: const Icon(Icons.assignment_outlined,
-                  size: 28, color: AppColors.primary),
+              child: const Icon(
+                Icons.assignment_outlined,
+                size: 28,
+                color: AppColors.primary,
+              ),
             ),
             const SizedBox(height: 14),
             const Text(
               'Henüz form yok',
               style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.text),
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
             ),
             const SizedBox(height: 6),
             const Text(
               'İlk değerlendirme formunuzu oluşturarak danışanlarınızın bilgilerini toplamaya başlayın.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 13, color: AppColors.muted),
+              style: TextStyle(fontSize: 13, color: AppColors.muted),
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: () => _openEditor(context),
               icon: const Icon(Icons.add, size: 17),
-              label: const Text('İlk Formu Oluştur',
-                  style: TextStyle()),
+              label: const Text('İlk Formu Oluştur', style: TextStyle()),
             ),
           ],
         ),
@@ -210,8 +235,7 @@ class _FormsTabState extends State<FormsTab> {
           Text(
             'Arama kriterlerinize uygun form bulunamadı',
             textAlign: TextAlign.center,
-            style: TextStyle(
-                fontSize: 13, color: AppColors.text2),
+            style: TextStyle(fontSize: 13, color: AppColors.text2),
           ),
         ],
       ),
@@ -239,9 +263,10 @@ class _FormsTabState extends State<FormsTab> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.text),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -254,10 +279,11 @@ class _FormsTabState extends State<FormsTab> {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-                fontSize: 12.5,
-                color: f.description.isNotEmpty
-                    ? AppColors.text2
-                    : AppColors.muted),
+              fontSize: 12.5,
+              color: f.description.isNotEmpty
+                  ? AppColors.text2
+                  : AppColors.muted,
+            ),
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -265,8 +291,19 @@ class _FormsTabState extends State<FormsTab> {
             runSpacing: 6,
             children: [
               _miniStat(Icons.list_alt, '${f.questions.length} soru'),
-              _miniStat(Icons.assignment_turned_in_outlined, '$n değerlendirme'),
-              _miniStat(Icons.refresh, 'Günc. ${fmtDate(DateTime.fromMillisecondsSinceEpoch((f.updatedAt > 0 ? f.updatedAt : f.createdAt).toInt()))}'),
+              if (f.diagnosisCodes.isNotEmpty)
+                _miniStat(
+                  Icons.local_hospital_outlined,
+                  '${f.diagnosisCodes.length} tanı kodu',
+                ),
+              _miniStat(
+                Icons.assignment_turned_in_outlined,
+                '$n değerlendirme',
+              ),
+              _miniStat(
+                Icons.refresh,
+                'Günc. ${fmtDate(DateTime.fromMillisecondsSinceEpoch((f.updatedAt > 0 ? f.updatedAt : f.createdAt).toInt()))}',
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -278,39 +315,43 @@ class _FormsTabState extends State<FormsTab> {
             children: [
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    minimumSize: const Size(0, 36)),
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: const Size(0, 36),
+                ),
                 onPressed: () => _openEditor(context, form: f),
                 icon: const Icon(Icons.edit_outlined, size: 15),
-                label: const Text('Düzenle',
-                    style: TextStyle(
-                        fontSize: 12.5)),
+                label: const Text('Düzenle', style: TextStyle(fontSize: 12.5)),
               ),
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    minimumSize: const Size(0, 36)),
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: const Size(0, 36),
+                ),
                 onPressed: () => _openFill(context, f),
                 icon: const Icon(Icons.edit_note, size: 15),
-                label: const Text('Doldur',
-                    style: TextStyle(
-                        fontSize: 12.5)),
+                label: const Text('Doldur', style: TextStyle(fontSize: 12.5)),
               ),
               IconButton(
                 tooltip: 'Kopyala',
                 visualDensity: VisualDensity.compact,
                 onPressed: () => _duplicate(f),
-                icon: const Icon(Icons.copy_outlined,
-                    size: 18, color: AppColors.text2),
+                icon: const Icon(
+                  Icons.copy_outlined,
+                  size: 18,
+                  color: AppColors.text2,
+                ),
               ),
               IconButton(
                 tooltip: 'Sil',
                 visualDensity: VisualDensity.compact,
                 onPressed: () => _confirmDelete(context, f),
-                icon: const Icon(Icons.delete_outline,
-                    size: 18, color: AppColors.danger),
+                icon: const Icon(
+                  Icons.delete_outline,
+                  size: 18,
+                  color: AppColors.danger,
+                ),
               ),
             ],
           ),
@@ -330,10 +371,7 @@ class _FormsTabState extends State<FormsTab> {
       ),
       child: Text(
         active ? 'Aktif' : 'Pasif',
-        style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: fg),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg),
       ),
     );
   }
@@ -346,14 +384,31 @@ class _FormsTabState extends State<FormsTab> {
         const SizedBox(width: 4),
         Text(
           text,
-          style: const TextStyle(
-              fontSize: 11.5, color: AppColors.muted),
+          style: const TextStyle(fontSize: 11.5, color: AppColors.muted),
         ),
       ],
     );
   }
 
   // ---------------- Aksiyonlar ----------------
+  Future<void> _openPresetLibrary(BuildContext context) async {
+    final result = await showDialog<FormEntry>(
+      context: context,
+      builder: (_) => ReadyFormLibraryDialog(newId: widget.data.newId),
+    );
+    if (result == null) return;
+    _d.forms.add(result);
+    widget.data.save();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text('${result.title} hazır form olarak eklendi.')),
+        );
+      setState(() {});
+    }
+  }
+
   void _openEditor(BuildContext context, {FormEntry? form}) async {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await showDialog<bool>(
@@ -363,9 +418,9 @@ class _FormsTabState extends State<FormsTab> {
     if (ok == true) {
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(
-            content: Text('Form kaydedildi.',
-                style: TextStyle())));
+        ..showSnackBar(
+          const SnackBar(content: Text('Form kaydedildi.', style: TextStyle())),
+        );
     }
   }
 
@@ -378,9 +433,14 @@ class _FormsTabState extends State<FormsTab> {
     if (ok == true) {
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-            content: Text('Değerlendirme kaydedildi: ${f.title}',
-                style: const TextStyle())));
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              'Değerlendirme kaydedildi: ${f.title}',
+              style: const TextStyle(),
+            ),
+          ),
+        );
     }
   }
 
@@ -390,28 +450,36 @@ class _FormsTabState extends State<FormsTab> {
       title: '${f.title} (Kopya)',
       description: f.description,
       isActive: false,
+      diagnosisCodes: List.of(f.diagnosisCodes),
     );
     for (var i = 0; i < f.questions.length; i++) {
       final q = f.questions[i];
-      copy.questions.add(FormQuestion(
-        id: widget.data.newId(),
-        type: q.type,
-        text: q.text,
-        required: q.required,
-        options: List.of(q.options),
-        expectedAnswer: q.expectedAnswer,
-        helpText: q.helpText,
-        scaleMax: q.scaleMax,
-        order: i,
-      ));
+      copy.questions.add(
+        FormQuestion(
+          id: widget.data.newId(),
+          type: q.type,
+          text: q.text,
+          required: q.required,
+          options: List.of(q.options),
+          expectedAnswer: q.expectedAnswer,
+          helpText: q.helpText,
+          scaleMax: q.scaleMax,
+          order: i,
+        ),
+      );
     }
     _d.forms.add(copy);
     widget.data.save();
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(
-          content: Text('Form kopyalandı (pasif olarak eklendi).',
-              style: TextStyle())));
+      ..showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Form kopyalandı (pasif olarak eklendi).',
+            style: TextStyle(),
+          ),
+        ),
+      );
   }
 
   Future<void> _confirmDelete(BuildContext context, FormEntry f) async {
@@ -420,8 +488,7 @@ class _FormsTabState extends State<FormsTab> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Formu sil',
-            style: TextStyle()),
+        title: const Text('Formu sil', style: TextStyle()),
         content: Text(
           '"${f.title}" silinecek. Bu forma ait $n değerlendirme kaydı da silinir. Bu işlem geri alınamaz.',
           style: const TextStyle(),
@@ -429,14 +496,12 @@ class _FormsTabState extends State<FormsTab> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Vazgeç',
-                style: TextStyle()),
+            child: const Text('Vazgeç', style: TextStyle()),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
-            child: const Text('Evet, Sil',
-                style: TextStyle()),
+            child: const Text('Evet, Sil', style: TextStyle()),
           ),
         ],
       ),
@@ -447,9 +512,9 @@ class _FormsTabState extends State<FormsTab> {
       widget.data.save();
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(
-            content: Text('Form silindi.',
-                style: TextStyle())));
+        ..showSnackBar(
+          const SnackBar(content: Text('Form silindi.', style: TextStyle())),
+        );
     }
   }
 }
@@ -475,15 +540,15 @@ class _QDraft {
   int scaleMax;
 
   FormQuestion toQuestion(int order) => FormQuestion(
-        id: id,
-        type: type,
-        text: text,
-        required: required,
-        options: type == 'multiple_choice' ? options : null,
-        helpText: helpText,
-        scaleMax: scaleMax,
-        order: order,
-      );
+    id: id,
+    type: type,
+    text: text,
+    required: required,
+    options: type == 'multiple_choice' ? options : null,
+    helpText: helpText,
+    scaleMax: scaleMax,
+    order: order,
+  );
 }
 
 /// Form oluşturma / düzenleme penceresi.
@@ -502,6 +567,7 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
   late final TextEditingController _desc;
   late bool _active;
   late final List<_QDraft> _qs;
+  late final List<String> _diagnosisCodes;
   String? _error;
 
   DataStore get _data => widget.data;
@@ -513,6 +579,7 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
     _title = TextEditingController(text: f?.title ?? '');
     _desc = TextEditingController(text: f?.description ?? '');
     _active = f?.isActive ?? true;
+    _diagnosisCodes = List.of(f?.diagnosisCodes ?? const <String>[]);
     _qs = [
       for (final q in f?.questions ?? <FormQuestion>[])
         _QDraft(
@@ -552,7 +619,8 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
         setState(() => _error = '${i + 1}. sorunun metni boş olamaz.');
         return;
       }
-      if (q.type == 'multiple_choice' && q.options.where((o) => o.trim().isNotEmpty).length < 2) {
+      if (q.type == 'multiple_choice' &&
+          q.options.where((o) => o.trim().isNotEmpty).length < 2) {
         setState(() => _error = '${i + 1}. soruda en az 2 seçenek olmalı.');
         return;
       }
@@ -563,18 +631,26 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
       existing.title = title;
       existing.description = _desc.text.trim();
       existing.isActive = _active;
+      existing.diagnosisCodes
+        ..clear()
+        ..addAll(_diagnosisCodes);
       existing.updatedAt = now;
       existing.questions
         ..clear()
         ..addAll([for (var i = 0; i < _qs.length; i++) _qs[i].toQuestion(i)]);
     } else {
-      _data.data.forms.add(FormEntry(
-        id: _data.newId(),
-        title: title,
-        description: _desc.text.trim(),
-        isActive: _active,
-        questions: [for (var i = 0; i < _qs.length; i++) _qs[i].toQuestion(i)],
-      ));
+      _data.data.forms.add(
+        FormEntry(
+          id: _data.newId(),
+          title: title,
+          description: _desc.text.trim(),
+          isActive: _active,
+          diagnosisCodes: List.of(_diagnosisCodes),
+          questions: [
+            for (var i = 0; i < _qs.length; i++) _qs[i].toQuestion(i),
+          ],
+        ),
+      );
     }
     _data.save();
     Navigator.of(context).pop(true);
@@ -584,7 +660,9 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radius)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radius),
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 760, maxHeight: 680),
         child: Column(
@@ -599,9 +677,10 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
                           ? 'Formu Düzenle'
                           : 'Yeni Değerlendirme Formu',
                       style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.text),
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -641,36 +720,39 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
                       title: const Text(
                         'Form aktif',
                         style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
                       ),
                       subtitle: const Text(
                         'Pasif formlar listede kalır, doldurulamaz.',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.muted),
+                        style: TextStyle(fontSize: 12, color: AppColors.muted),
                       ),
                       value: _active,
                       onChanged: (v) => setState(() => _active = v),
                     ),
                     const SizedBox(height: 6),
+                    _diagnosisCodesSection(),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         const Expanded(
                           child: Text(
                             'Sorular',
                             style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.text),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.text,
+                            ),
                           ),
                         ),
                         OutlinedButton.icon(
                           onPressed: _addQuestion,
                           icon: const Icon(Icons.add, size: 15),
-                          label: const Text('Soru Ekle',
-                              style: TextStyle(
-                                  fontSize: 13)),
+                          label: const Text(
+                            'Soru Ekle',
+                            style: TextStyle(fontSize: 13),
+                          ),
                         ),
                       ],
                     ),
@@ -687,8 +769,9 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
                           'Henüz soru yok. "Soru Ekle" ile başlayın.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                              fontSize: 12.5,
-                              color: AppColors.muted),
+                            fontSize: 12.5,
+                            color: AppColors.muted,
+                          ),
                         ),
                       )
                     else
@@ -704,15 +787,19 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.error_outline,
-                                size: 18, color: AppColors.danger),
+                            const Icon(
+                              Icons.error_outline,
+                              size: 18,
+                              color: AppColors.danger,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 _error!,
                                 style: const TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.danger),
+                                  fontSize: 13,
+                                  color: AppColors.danger,
+                                ),
                               ),
                             ),
                           ],
@@ -731,15 +818,13 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text('İptal',
-                        style: TextStyle()),
+                    child: const Text('İptal', style: TextStyle()),
                   ),
                   const SizedBox(width: 8),
                   FilledButton.icon(
                     onPressed: _save,
                     icon: const Icon(Icons.save_outlined, size: 16),
-                    label: const Text('Kaydet',
-                        style: TextStyle()),
+                    label: const Text('Kaydet', style: TextStyle()),
                   ),
                 ],
               ),
@@ -748,6 +833,71 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
         ),
       ),
     );
+  }
+
+  Widget _diagnosisCodesSection() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primarySoft,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.primary.withValues(alpha: .24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'DSM-5-TR / ICD-10-CM tanı kodları',
+                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _pickDiagnosisCodes,
+                icon: const Icon(Icons.add, size: 15),
+                label: const Text('Kod Ekle'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Formu ilişkilendirmek istediğiniz tanı kodlarını arayarak seçin. Kod listesi DSM-5-TR ile kullanılan ICD-10-CM kataloğunu içerir.',
+            style: TextStyle(fontSize: 11.5, color: AppColors.muted),
+          ),
+          if (_diagnosisCodes.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final code in _diagnosisCodes)
+                  InputChip(
+                    label: Text(code, style: const TextStyle(fontSize: 11)),
+                    onDeleted: () =>
+                        setState(() => _diagnosisCodes.remove(code)),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickDiagnosisCodes() async {
+    final result = await showDialog<List<String>>(
+      context: context,
+      builder: (_) => DiagnosisCodePickerDialog(initialCodes: _diagnosisCodes),
+    );
+    if (result != null) {
+      setState(() {
+        _diagnosisCodes
+          ..clear()
+          ..addAll(result);
+      });
+    }
   }
 
   Widget _questionCard(BuildContext context, int i) {
@@ -776,30 +926,27 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
                   child: Text(
                     '${i + 1}',
                     style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700),
+                      fontSize: 13,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: q.required
-                      ? AppColors.primarySoft
-                      : AppColors.bg2,
+                  color: q.required ? AppColors.primarySoft : AppColors.bg2,
                   borderRadius: BorderRadius.circular(7),
                 ),
                 child: Text(
                   '${questionTypeLabel(q.type)}${q.required ? ' · Zorunlu' : ''}',
                   style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: q.required
-                          ? AppColors.primaryDark
-                          : AppColors.muted),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: q.required ? AppColors.primaryDark : AppColors.muted,
+                  ),
                 ),
               ),
               const Spacer(),
@@ -809,12 +956,15 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
                 onPressed: i == 0
                     ? null
                     : () => setState(() {
-                          final t = _qs[i - 1];
-                          _qs[i - 1] = q;
-                          _qs[i] = t;
-                        }),
-                icon: const Icon(Icons.keyboard_arrow_up,
-                    size: 19, color: AppColors.text2),
+                        final t = _qs[i - 1];
+                        _qs[i - 1] = q;
+                        _qs[i] = t;
+                      }),
+                icon: const Icon(
+                  Icons.keyboard_arrow_up,
+                  size: 19,
+                  color: AppColors.text2,
+                ),
               ),
               IconButton(
                 tooltip: 'Aşağı',
@@ -822,12 +972,15 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
                 onPressed: i == _qs.length - 1
                     ? null
                     : () => setState(() {
-                          final t = _qs[i + 1];
-                          _qs[i + 1] = q;
-                          _qs[i] = t;
-                        }),
-                icon: const Icon(Icons.keyboard_arrow_down,
-                    size: 19, color: AppColors.text2),
+                        final t = _qs[i + 1];
+                        _qs[i + 1] = q;
+                        _qs[i] = t;
+                      }),
+                icon: const Icon(
+                  Icons.keyboard_arrow_down,
+                  size: 19,
+                  color: AppColors.text2,
+                ),
               ),
               IconButton(
                 tooltip: 'Kopyala',
@@ -844,15 +997,21 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
                   );
                   _qs.insert(i + 1, c);
                 }),
-                icon: const Icon(Icons.copy_outlined,
-                    size: 17, color: AppColors.text2),
+                icon: const Icon(
+                  Icons.copy_outlined,
+                  size: 17,
+                  color: AppColors.text2,
+                ),
               ),
               IconButton(
                 tooltip: 'Sil',
                 visualDensity: VisualDensity.compact,
                 onPressed: () => setState(() => _qs.removeAt(i)),
-                icon: const Icon(Icons.delete_outline,
-                    size: 18, color: AppColors.danger),
+                icon: const Icon(
+                  Icons.delete_outline,
+                  size: 18,
+                  color: AppColors.danger,
+                ),
               ),
             ],
           ),
@@ -871,13 +1030,16 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
                   items: const [
                     DropdownMenuItem(value: 'text', child: Text('Açık Uçlu')),
                     DropdownMenuItem(
-                        value: 'multiple_choice',
-                        child: Text('Çoktan Seçmeli')),
+                      value: 'multiple_choice',
+                      child: Text('Çoktan Seçmeli'),
+                    ),
                     DropdownMenuItem(value: 'scale', child: Text('Ölçek')),
-                    DropdownMenuItem(value: 'yes_no', child: Text('Evet/Hayır')),
+                    DropdownMenuItem(
+                      value: 'yes_no',
+                      child: Text('Evet/Hayır'),
+                    ),
                   ],
-                  onChanged: (v) =>
-                      setState(() => q.type = v ?? 'text'),
+                  onChanged: (v) => setState(() => q.type = v ?? 'text'),
                 ),
               ),
               const SizedBox(width: 10),
@@ -895,8 +1057,7 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
                           DropdownMenuItem(value: 5, child: Text('1 – 5')),
                           DropdownMenuItem(value: 10, child: Text('1 – 10')),
                         ],
-                        onChanged: (v) =>
-                            setState(() => q.scaleMax = v ?? 5),
+                        onChanged: (v) => setState(() => q.scaleMax = v ?? 5),
                       ),
                     )
                   : Row(
@@ -907,9 +1068,7 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
                           onChanged: (v) =>
                               setState(() => q.required = v ?? true),
                         ),
-                        const Text('Zorunlu',
-                            style: TextStyle(
-                                fontSize: 13)),
+                        const Text('Zorunlu', style: TextStyle(fontSize: 13)),
                       ],
                     ),
             ],
@@ -934,11 +1093,14 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
           ),
           if (q.type == 'multiple_choice') ...[
             const SizedBox(height: 8),
-            const Text('SEÇENEKLER *',
-                style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.muted)),
+            const Text(
+              'SEÇENEKLER *',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.muted,
+              ),
+            ),
             const SizedBox(height: 6),
             for (var j = 0; j < q.options.length; j++)
               Padding(
@@ -961,8 +1123,11 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
                       onPressed: q.options.length <= 2
                           ? null
                           : () => setState(() => q.options.removeAt(j)),
-                      icon: const Icon(Icons.close,
-                          size: 16, color: AppColors.danger),
+                      icon: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: AppColors.danger,
+                      ),
                     ),
                   ],
                 ),
@@ -971,10 +1136,13 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 onPressed: () => setState(
-                    () => q.options.add('Seçenek ${q.options.length + 1}')),
+                  () => q.options.add('Seçenek ${q.options.length + 1}'),
+                ),
                 icon: const Icon(Icons.add, size: 15),
-                label: const Text('Seçenek Ekle',
-                    style: TextStyle(fontSize: 12.5)),
+                label: const Text(
+                  'Seçenek Ekle',
+                  style: TextStyle(fontSize: 12.5),
+                ),
               ),
             ),
           ],
@@ -982,11 +1150,208 @@ class _FormEditorDialogState extends State<FormEditorDialog> {
             const SizedBox(height: 4),
             Text(
               'Ölçek aralığı: 1 – ${q.scaleMax}',
-              style: const TextStyle(
-                  fontSize: 11.5, color: AppColors.muted),
+              style: const TextStyle(fontSize: 11.5, color: AppColors.muted),
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Hazır form şablonları ve lisanslı JSON içe aktarma penceresi.
+class ReadyFormLibraryDialog extends StatelessWidget {
+  const ReadyFormLibraryDialog({super.key, required this.newId});
+
+  final String Function() newId;
+
+  Future<void> _importJson(BuildContext context) async {
+    try {
+      final files = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (files.isEmpty) return;
+      final raw = utf8.decode(await files.single.readAsBytes());
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) {
+        throw const FormatException('JSON nesnesi bekleniyor.');
+      }
+      final source = FormEntry.fromJson(Map<String, dynamic>.from(decoded));
+      if (source.title.trim().isEmpty || source.questions.isEmpty) {
+        throw const FormatException('Form başlığı ve en az bir soru gerekli.');
+      }
+      final form = FormEntry(
+        id: newId(),
+        title: source.title,
+        description: source.description,
+        isActive: source.isActive,
+        diagnosisCodes: List.of(source.diagnosisCodes),
+        questions: [
+          for (final q in source.questions)
+            FormQuestion(
+              id: newId(),
+              type: q.type,
+              text: q.text,
+              required: q.required,
+              options: List.of(q.options),
+              expectedAnswer: q.expectedAnswer,
+              helpText: q.helpText,
+              scaleMax: q.scaleMax,
+              order: q.order,
+            ),
+        ],
+      );
+      if (!context.mounted) return;
+      Navigator.of(context).pop(form);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Form içe aktarılamadı: $e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(16),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 820, maxHeight: 700),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 12, 10),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Hazır Form Kütüphanesi',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: 3),
+                        Text(
+                          'Hazır bir şablonu forma ekleyin veya lisanslı form JSON’u içe aktarın.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, color: AppColors.muted),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: formPresets.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  final preset = formPresets[index];
+                  return Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: AppColors.primarySoft,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            preset.requiresLicense
+                                ? Icons.lock_outline
+                                : Icons.assignment_outlined,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                preset.title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                preset.description,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  color: AppColors.text2,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                '${preset.category} · ${preset.questionCount} soru',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.muted,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                preset.licenseNote,
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.muted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        preset.requiresLicense
+                            ? OutlinedButton.icon(
+                                onPressed: () => _importJson(context),
+                                icon: const Icon(Icons.upload_file, size: 15),
+                                label: const Text('JSON İçe Aktar'),
+                              )
+                            : FilledButton.icon(
+                                onPressed: () =>
+                                    Navigator.pop(context, preset.build(newId)),
+                                icon: const Icon(Icons.add, size: 15),
+                                label: const Text('Ekle'),
+                              ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: const Text(
+                'İçe aktarma biçimi: FormEntry.toJson() çıktısı veya aynı alanları içeren bir JSON nesnesi. BDI-II gibi lisanslı ölçeklerde soru metni ve kullanım hakkı kullanıcıya aittir.',
+                style: TextStyle(fontSize: 11.5, color: AppColors.muted),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1015,7 +1380,9 @@ class _FillFormDialogState extends State<FillFormDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radius)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radius),
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 620, maxHeight: 680),
         child: Column(
@@ -1031,9 +1398,10 @@ class _FillFormDialogState extends State<FillFormDialog> {
                         Text(
                           _form.title,
                           style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.text),
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.text,
+                          ),
                         ),
                         if (_form.description.isNotEmpty)
                           Text(
@@ -1041,8 +1409,9 @@ class _FillFormDialogState extends State<FillFormDialog> {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                                fontSize: 12.5,
-                                color: AppColors.muted),
+                              fontSize: 12.5,
+                              color: AppColors.muted,
+                            ),
                           ),
                       ],
                     ),
@@ -1071,7 +1440,9 @@ class _FillFormDialogState extends State<FillFormDialog> {
                       ),
                       items: [
                         const DropdownMenuItem(
-                            value: '', child: Text('Danışan seçilmedi')),
+                          value: '',
+                          child: Text('Danışan seçilmedi'),
+                        ),
                         for (final c in _data.data.clients)
                           DropdownMenuItem(value: c.id, child: Text(c.name)),
                       ],
@@ -1089,15 +1460,19 @@ class _FillFormDialogState extends State<FillFormDialog> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.error_outline,
-                                size: 18, color: AppColors.danger),
+                            const Icon(
+                              Icons.error_outline,
+                              size: 18,
+                              color: AppColors.danger,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 _error!,
                                 style: const TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.danger),
+                                  fontSize: 13,
+                                  color: AppColors.danger,
+                                ),
                               ),
                             ),
                           ],
@@ -1116,15 +1491,16 @@ class _FillFormDialogState extends State<FillFormDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text('İptal',
-                        style: TextStyle()),
+                    child: const Text('İptal', style: TextStyle()),
                   ),
                   const SizedBox(width: 8),
                   FilledButton.icon(
                     onPressed: _submit,
                     icon: const Icon(Icons.check, size: 16),
-                    label: const Text('Değerlendirmeyi Kaydet',
-                        style: TextStyle()),
+                    label: const Text(
+                      'Değerlendirmeyi Kaydet',
+                      style: TextStyle(),
+                    ),
                   ),
                 ],
               ),
@@ -1151,16 +1527,16 @@ class _FillFormDialogState extends State<FillFormDialog> {
           Text(
             '${q.text}${q.required ? ' *' : ''}',
             style: const TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w700,
-                color: AppColors.text),
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.text,
+            ),
           ),
           if (q.helpText.isNotEmpty) ...[
             const SizedBox(height: 3),
             Text(
               q.helpText,
-              style: const TextStyle(
-                  fontSize: 12, color: AppColors.muted),
+              style: const TextStyle(fontSize: 12, color: AppColors.muted),
             ),
           ],
           const SizedBox(height: 10),
@@ -1169,8 +1545,8 @@ class _FillFormDialogState extends State<FillFormDialog> {
               keyboardType: q.type == 'number'
                   ? TextInputType.number
                   : q.type == 'date'
-                      ? TextInputType.datetime
-                      : TextInputType.multiline,
+                  ? TextInputType.datetime
+                  : TextInputType.multiline,
               maxLines: q.type == 'text' ? 3 : 1,
               decoration: const InputDecoration(isDense: true),
               onChanged: (v) => _answers[q.id] = v,
@@ -1192,8 +1568,8 @@ class _FillFormDialogState extends State<FillFormDialog> {
     final v = value is int
         ? value
         : value is num
-            ? value.toInt()
-            : int.tryParse(value?.toString() ?? '');
+        ? value.toInt()
+        : int.tryParse(value?.toString() ?? '');
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -1268,7 +1644,8 @@ class _FillFormDialogState extends State<FillFormDialog> {
     for (final q in _form.questions) {
       if (!q.required) continue;
       final v = _answers[q.id];
-      final empty = v == null ||
+      final empty =
+          v == null ||
           (v is String && v.trim().isEmpty) ||
           (v is List && v.isEmpty);
       if (empty) {
@@ -1288,23 +1665,24 @@ class _FillFormDialogState extends State<FillFormDialog> {
     final sc = assessmentScore(_data.data, a);
     a.score = sc?.avg;
     final form = _data.data.formById(_form.id);
-    a.risk = form != null &&
+    a.risk =
+        form != null &&
         _form.questions.any((q) {
           final v = a.answers[q.id];
           if (v == null) return false;
           if (q.type == 'yes_no' &&
-              RegExp(r'(zarar|intihar|canına kıyma|hayatına son|risk)',
-                      caseSensitive: false)
-                  .hasMatch(q.text)) {
+              RegExp(
+                r'(zarar|intihar|canına kıyma|hayatına son|risk)',
+                caseSensitive: false,
+              ).hasMatch(q.text)) {
             return v.toString().toLowerCase().contains('evet');
           }
           if (q.type == 'scale' &&
-              RegExp(r'(zarar|intihar|canına kıyma|hayatına son|risk)',
-                      caseSensitive: false)
-                  .hasMatch(q.text)) {
-            final n = v is int
-                ? v
-                : int.tryParse(v.toString());
+              RegExp(
+                r'(zarar|intihar|canına kıyma|hayatına son|risk)',
+                caseSensitive: false,
+              ).hasMatch(q.text)) {
+            final n = v is int ? v : int.tryParse(v.toString());
             if (n != null) return n >= (q.scaleMax > 0 ? q.scaleMax : 5);
           }
           return false;

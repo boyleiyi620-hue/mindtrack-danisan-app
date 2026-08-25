@@ -5,7 +5,11 @@ import '../models/form_entry.dart';
 /// Değerlendirme puanı: formdaki ölçek sorularının ortalaması.
 /// Web sürümündeki `assessmentScore` ile birebir uyumlu.
 class AssessmentScore {
-  const AssessmentScore({required this.avg, required this.max, required this.n});
+  const AssessmentScore({
+    required this.avg,
+    required this.max,
+    required this.n,
+  });
   final double avg;
   final int max;
   final int n;
@@ -16,27 +20,28 @@ AssessmentScore? assessmentScore(AppData data, Assessment a) {
   final qs = form?.questions ?? const <FormQuestion>[];
   if (qs.isEmpty) return null;
   final scales = <int>[];
+  var scoreMax = 0;
   for (final q in qs) {
-    if (q.type != 'scale') continue;
+    final isScored = q.type == 'scale' || q.type == 'multiple_choice';
+    if (!isScored) continue;
     final v = a.answers[q.id];
     final n = v is int
         ? v
         : v is num
-            ? v.toInt()
-            : int.tryParse(v?.toString() ?? '');
-    if (n != null) scales.add(n);
+        ? v.toInt()
+        : int.tryParse(v?.toString().trim().split(RegExp(r'\s')).first ?? '');
+    if (n != null) {
+      scales.add(n);
+      final maxForQuestion = q.type == 'scale'
+          ? (q.scaleMax > 0 ? q.scaleMax : 5)
+          : q.options.length - 1;
+      if (maxForQuestion > scoreMax) scoreMax = maxForQuestion;
+    }
   }
   if (scales.isEmpty) return null;
-  final max = qs
-      .where((q) => q.type == 'scale')
-      .map((q) => q.scaleMax > 0 ? q.scaleMax : 5)
-      .fold<int>(0, (a, b) => a > b ? a : b);
+  final max = scoreMax > 0 ? scoreMax : 5;
   final sum = scales.fold<int>(0, (a, b) => a + b);
-  return AssessmentScore(
-    avg: sum / scales.length,
-    max: max,
-    n: scales.length,
-  );
+  return AssessmentScore(avg: sum / scales.length, max: max, n: scales.length);
 }
 
 /// Soru tipi etiketi (Türkçe).
