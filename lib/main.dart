@@ -394,9 +394,12 @@ class _PairingScreenState extends State<PairingScreen> {
         throw 'Eşleşme bilgisi eksik.';
       }
 
+      final pairingDiagnosisCodes = _listValue(data['diagnosisCodes']);
       await FirebaseFirestore.instance.collection('patients').doc(uid).set({
         'psychologistId': psychologistId,
         ...?(localClientId == null ? null : {'localClientId': localClientId}),
+        if (pairingDiagnosisCodes.isNotEmpty)
+          'diagnosisCodes': pairingDiagnosisCodes,
       }, SetOptions(merge: true));
       await snap.reference.update({'clientUserId': uid, 'status': 'paired'});
 

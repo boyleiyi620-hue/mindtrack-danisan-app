@@ -29,8 +29,11 @@ build_target() {
   cp "$WEB_DIR/$template" "$WEB_DIR/index.html"
   cp "$WEB_DIR/$manifest" "$WEB_DIR/manifest.json"
   rm -rf "$BUILD_DIR/web" "$BUILD_DIR/$output"
-  "$FLUTTER_BIN" build web --release --no-wasm-dry-run -t "lib/$target" 
+  "$FLUTTER_BIN" build web --release --no-wasm-dry-run -t "lib/$target"
   cp -a "$BUILD_DIR/web" "$BUILD_DIR/$output"
+  # Önceki Flutter sürümünün service worker cache’ini kullanan tarayıcıları temizle.
+  cp "$WEB_DIR/disable_flutter_service_worker.js" \
+    "$BUILD_DIR/$output/flutter_service_worker.js"
 }
 
 build_target "main_psych.dart" "index_psychologist.html" "manifest_psychologist.json" "psych"

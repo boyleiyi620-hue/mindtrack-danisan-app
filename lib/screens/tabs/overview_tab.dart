@@ -3,13 +3,11 @@ import 'package:flutter/material.dart';
 import '../../data/data_store.dart';
 import '../../models/app_data.dart';
 import '../../models/appointment.dart';
-import '../../models/assessment.dart';
 import '../../models/task.dart';
 import '../../models/user_account.dart';
 import '../../theme/app_theme.dart';
 import 'appointment_requests.dart';
 import '../../utils/formats.dart';
-import '../../utils/risk.dart';
 
 /// Genel Bakış — psikoloğun günlük kontrol panosu.
 /// Web sürümündeki `overviewView` yapısıyla birebir uyumlu.
@@ -40,31 +38,23 @@ class _OverviewTabState extends State<OverviewTab> {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final today = todayIso();
-    final firstName = _u.name.split(RegExp(r'\s+')).firstWhere(
-        (s) => s.isNotEmpty, orElse: () => _u.name);
+    final firstName = _u.name
+        .split(RegExp(r'\s+'))
+        .firstWhere((s) => s.isNotEmpty, orElse: () => _u.name);
 
-    final todayAppts = _d.appointments
-        .where((a) => a.date == today)
-        .toList()
+    final todayAppts = _d.appointments.where((a) => a.date == today).toList()
       ..sort((a, b) => a.time.compareTo(b.time));
     final doneToday = todayAppts.where((a) => a.status == 'done').length;
 
-    final upcoming = _d.appointments
-        .where((a) => a.date.compareTo(today) >= 0 && a.status == 'planned')
-        .toList()
-      ..sort((a, b) {
-        final c = a.date.compareTo(b.date);
-        return c != 0 ? c : a.time.compareTo(b.time);
-      });
+    final upcoming =
+        _d.appointments
+            .where((a) => a.date.compareTo(today) >= 0 && a.status == 'planned')
+            .toList()
+          ..sort((a, b) {
+            final c = a.date.compareTo(b.date);
+            return c != 0 ? c : a.time.compareTo(b.time);
+          });
     final upcomingList = upcoming.take(6).toList();
-
-    final recent = [..._d.assessments]
-      ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
-    final recentList = recent.take(5).toList();
-
-    final risks = [..._d.assessments.where((a) => isRiskyAssessment(_d, a))]
-      ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
-    final riskList = risks.take(3).toList();
 
     final openTasks = _d.tasks.where((t) => !t.done).toList();
     final openTasksList = openTasks.take(4).toList();
@@ -80,10 +70,6 @@ class _OverviewTabState extends State<OverviewTab> {
               _header(context, firstName, todayAppts.length, doneToday, today),
               const SizedBox(height: 14),
               PendingAppointmentRequests(data: _data),
-              if (riskList.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                _riskBanner(context, riskList),
-              ],
               if (_showBackupReminder()) ...[
                 const SizedBox(height: 14),
                 _backupReminder(context),
@@ -91,27 +77,12 @@ class _OverviewTabState extends State<OverviewTab> {
               const SizedBox(height: 16),
               _statsGrid(context),
               const SizedBox(height: 18),
-              LayoutBuilder(
-                builder: (context, bc) {
-                  final wide = bc.maxWidth >= 760;
-                  final upcomingCol = _upcomingColumn(context, upcomingList,
-                      upcoming.isNotEmpty, today, now);
-                  final assessCol = _assessmentsColumn(
-                      context, recentList, recent.isNotEmpty);
-                  if (wide) {
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: upcomingCol),
-                        const SizedBox(width: 18),
-                        Expanded(child: assessCol),
-                      ],
-                    );
-                  }
-                  return Column(
-                    children: [upcomingCol, const SizedBox(height: 18), assessCol],
-                  );
-                },
+              _upcomingColumn(
+                context,
+                upcomingList,
+                upcoming.isNotEmpty,
+                today,
+                now,
               ),
               const SizedBox(height: 18),
               _openTasksCard(context, openTasksList, openTasks.isNotEmpty),
@@ -126,8 +97,13 @@ class _OverviewTabState extends State<OverviewTab> {
   }
 
   // ---------------- Üst başlık ----------------
-  Widget _header(BuildContext context, String firstName, int todayCount,
-      int doneToday, String today) {
+  Widget _header(
+    BuildContext context,
+    String firstName,
+    int todayCount,
+    int doneToday,
+    String today,
+  ) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 620;
@@ -139,9 +115,10 @@ class _OverviewTabState extends State<OverviewTab> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.text),
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -162,8 +139,14 @@ class _OverviewTabState extends State<OverviewTab> {
                 _data.loadDemoData();
                 ScaffoldMessenger.of(context)
                   ..hideCurrentSnackBar()
-                  ..showSnackBar(const SnackBar(
-                      content: Text('Örnek veriler yüklendi.', style: TextStyle())));
+                  ..showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Örnek veriler yüklendi.',
+                        style: TextStyle(),
+                      ),
+                    ),
+                  );
               },
               icon: const Icon(Icons.auto_awesome, size: 16),
               label: const Text('Örnek Veri Yükle', style: TextStyle()),
@@ -182,87 +165,13 @@ class _OverviewTabState extends State<OverviewTab> {
               )
             : Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [Expanded(child: title), const SizedBox(width: 12), actions],
+                children: [
+                  Expanded(child: title),
+                  const SizedBox(width: 12),
+                  actions,
+                ],
               );
       },
-    );
-  }
-
-  // ---------------- Risk uyarısı ----------------
-  Widget _riskBanner(BuildContext context, List<Assessment> riskList) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.dangerSoft,
-        borderRadius: BorderRadius.circular(AppSizes.radius),
-        border: Border.all(color: AppColors.danger.withValues(alpha: .3)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.warning_amber_rounded,
-                color: AppColors.danger, size: 22),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Risk işareti taşıyan değerlendirmeler var',
-                  style: TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.danger),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Son değerlendirmelerde potansiyel risk yanıtları algılandı. Dikkatle inceleyin.',
-                  style: const TextStyle(
-                      fontSize: 12.5, color: AppColors.text2),
-                ),
-                const SizedBox(height: 6),
-                for (final a in riskList) _riskItem(context, a),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _riskItem(BuildContext context, Assessment a) {
-    final c = _d.clientById(a.clientId);
-    final f = _d.formById(a.formId);
-    return InkWell(
-      onTap: () => widget.onNavigate?.call('results'),
-      borderRadius: BorderRadius.circular(6),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            const Icon(Icons.arrow_right,
-                size: 18, color: AppColors.danger),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                '${c?.name ?? 'Anonim'} · ${f?.title ?? 'Form'} · ${fmtDateTime(a.submittedAt)}',
-                style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.danger),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -271,8 +180,9 @@ class _OverviewTabState extends State<OverviewTab> {
     if (_dismissBackup) return false;
     if (_d.clients.isEmpty && _d.forms.isEmpty) return false;
     if (_u.lastBackupAt > 0) {
-      final diff = DateTime.now()
-          .difference(DateTime.fromMillisecondsSinceEpoch(_u.lastBackupAt.toInt()));
+      final diff = DateTime.now().difference(
+        DateTime.fromMillisecondsSinceEpoch(_u.lastBackupAt.toInt()),
+      );
       if (diff.inDays < 14) return false;
     }
     return true;
@@ -304,9 +214,10 @@ class _OverviewTabState extends State<OverviewTab> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w800,
-              color: AppColors.text),
+            fontSize: 13.5,
+            fontWeight: FontWeight.w800,
+            color: AppColors.text,
+          ),
         ),
         const SizedBox(height: 3),
         Text(
@@ -341,8 +252,11 @@ class _OverviewTabState extends State<OverviewTab> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.storage,
-                          color: AppColors.warning, size: 21),
+                      child: const Icon(
+                        Icons.storage,
+                        color: AppColors.warning,
+                        size: 21,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(child: content),
@@ -363,8 +277,11 @@ class _OverviewTabState extends State<OverviewTab> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.storage,
-                    color: AppColors.warning, size: 21),
+                child: const Icon(
+                  Icons.storage,
+                  color: AppColors.warning,
+                  size: 21,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(child: content),
@@ -381,20 +298,48 @@ class _OverviewTabState extends State<OverviewTab> {
   Widget _statsGrid(BuildContext context) {
     final today = todayIso();
     final activeForms = _d.forms.length;
-    final todayAppts =
-        _d.appointments.where((a) => a.date == today).length;
+    final todayAppts = _d.appointments.where((a) => a.date == today).length;
     final openTasks = _d.tasks.where((t) => !t.done).length;
 
     final stats = [
-      _Stat(Icons.people_outline, 'Danışan', _d.clients.length, AppColors.primary),
-      _Stat(Icons.assignment_outlined, 'Aktif Form', activeForms, AppColors.info),
-      _Stat(Icons.check_circle_outline, 'Bu Ay Değerlendirme',
-          _monthAssess(), AppColors.success),
-      _Stat(Icons.event_available, 'Bugünkü Randevu', todayAppts, AppColors.warning),
-      _Stat(Icons.schedule, 'Bekleyen Randevu', _pendingAppts(today), AppColors.danger),
+      _Stat(
+        Icons.people_outline,
+        'Danışan',
+        _d.clients.length,
+        AppColors.primary,
+      ),
+      _Stat(
+        Icons.assignment_outlined,
+        'Aktif Form',
+        activeForms,
+        AppColors.info,
+      ),
+      _Stat(
+        Icons.check_circle_outline,
+        'Bu Ay Değerlendirme',
+        _monthAssess(),
+        AppColors.success,
+      ),
+      _Stat(
+        Icons.event_available,
+        'Bugünkü Randevu',
+        todayAppts,
+        AppColors.warning,
+      ),
+      _Stat(
+        Icons.schedule,
+        'Bekleyen Randevu',
+        _pendingAppts(today),
+        AppColors.danger,
+      ),
       _Stat(Icons.done_all, 'Açık Görev', openTasks, AppColors.primary),
       if (_u.appMode == 'commercial')
-        _Stat(Icons.payments_outlined, 'Bugünkü Kazanç', _todayEarnings().toInt(), Colors.green),
+        _Stat(
+          Icons.payments_outlined,
+          'Bugünkü Kazanç',
+          _todayEarnings().toInt(),
+          Colors.green,
+        ),
     ];
 
     return LayoutBuilder(
@@ -402,8 +347,8 @@ class _OverviewTabState extends State<OverviewTab> {
         final cols = bc.maxWidth >= 900
             ? 6
             : bc.maxWidth >= 560
-                ? 3
-                : 2;
+            ? 3
+            : 2;
         const gap = 12.0;
         final cardW = (bc.maxWidth - gap * (cols - 1)) / cols;
         return Wrap(
@@ -465,18 +410,17 @@ class _OverviewTabState extends State<OverviewTab> {
                 Text(
                   '${s.value}',
                   style: const TextStyle(
-                      fontSize: 21,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.text),
+                    fontSize: 21,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                  ),
                 ),
                 const SizedBox(height: 1),
                 Text(
                   s.label,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.muted),
+                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
                 ),
               ],
             ),
@@ -487,8 +431,13 @@ class _OverviewTabState extends State<OverviewTab> {
   }
 
   // ---------------- Yaklaşan randevular ----------------
-  Widget _upcomingColumn(BuildContext context, List<Appointment> list,
-      bool hasItems, String today, DateTime now) {
+  Widget _upcomingColumn(
+    BuildContext context,
+    List<Appointment> list,
+    bool hasItems,
+    String today,
+    DateTime now,
+  ) {
     return _sectionCard(
       titleIcon: Icons.calendar_month_outlined,
       title: 'Yaklaşan Randevular',
@@ -507,8 +456,11 @@ class _OverviewTabState extends State<OverviewTab> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (list.isEmpty)
-            _emptyBox(Icons.calendar_month_outlined, 'Önümüzdeki günlerde randevu bulunmuyor.',
-                'Randevu eklemek için "Randevu Ekle" butonunu kullanın.')
+            _emptyBox(
+              Icons.calendar_month_outlined,
+              'Önümüzdeki günlerde randevu bulunmuyor.',
+              'Randevu eklemek için "Randevu Ekle" butonunu kullanın.',
+            )
           else
             for (final a in list) _apptTile(context, a, today),
           if (hasItems) ...[
@@ -516,8 +468,7 @@ class _OverviewTabState extends State<OverviewTab> {
             OutlinedButton.icon(
               onPressed: () => widget.onNavigate?.call('appointments'),
               icon: const Icon(Icons.add, size: 16),
-              label: const Text('Randevu Ekle',
-                  style: TextStyle()),
+              label: const Text('Randevu Ekle', style: TextStyle()),
             ),
           ],
         ],
@@ -546,18 +497,19 @@ class _OverviewTabState extends State<OverviewTab> {
             backgroundColor: completed
                 ? AppColors.success.withValues(alpha: .15)
                 : gone
-                    ? AppColors.danger.withValues(alpha: .12)
-                    : AppColors.warning.withValues(alpha: .15),
+                ? AppColors.danger.withValues(alpha: .12)
+                : AppColors.warning.withValues(alpha: .15),
             child: Text(
               initials(c?.name ?? '?'),
               style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: completed
-                      ? AppColors.success
-                      : gone
-                          ? AppColors.danger
-                          : AppColors.warning),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: completed
+                    ? AppColors.success
+                    : gone
+                    ? AppColors.danger
+                    : AppColors.warning,
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -570,15 +522,19 @@ class _OverviewTabState extends State<OverviewTab> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.text),
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Row(
                   children: [
-                    const Icon(Icons.calendar_today,
-                        size: 11, color: AppColors.muted),
+                    const Icon(
+                      Icons.calendar_today,
+                      size: 11,
+                      color: AppColors.muted,
+                    ),
                     const SizedBox(width: 4),
                     Flexible(
                       child: Text(
@@ -587,8 +543,9 @@ class _OverviewTabState extends State<OverviewTab> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            fontSize: 11.5,
-                            color: AppColors.muted),
+                          fontSize: 11.5,
+                          color: AppColors.muted,
+                        ),
                       ),
                     ),
                   ],
@@ -606,8 +563,11 @@ class _OverviewTabState extends State<OverviewTab> {
                 a.status = 'done';
                 _data.save();
               },
-              icon: const Icon(Icons.check_circle_outline,
-                  size: 19, color: AppColors.success),
+              icon: const Icon(
+                Icons.check_circle_outline,
+                size: 19,
+                color: AppColors.success,
+              ),
             ),
             IconButton(
               tooltip: 'Gelmedi',
@@ -616,126 +576,14 @@ class _OverviewTabState extends State<OverviewTab> {
                 a.status = 'noshow';
                 _data.save();
               },
-              icon: const Icon(Icons.cancel_outlined,
-                  size: 19, color: AppColors.danger),
+              icon: const Icon(
+                Icons.cancel_outlined,
+                size: 19,
+                color: AppColors.danger,
+              ),
             ),
           ],
         ],
-      ),
-    );
-  }
-
-  // ---------------- Son değerlendirmeler ----------------
-  Widget _assessmentsColumn(
-      BuildContext context, List<Assessment> list, bool hasItems) {
-    return _sectionCard(
-      titleIcon: Icons.monitor_heart_outlined,
-      title: 'Son Değerlendirmeler',
-      trailing: TextButton(
-        onPressed: () => widget.onNavigate?.call('results'),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Tümü', style: TextStyle()),
-            SizedBox(width: 2),
-            Icon(Icons.arrow_forward, size: 15),
-          ],
-        ),
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (list.isEmpty)
-            _emptyBox(Icons.assignment_outlined, 'Henüz değerlendirme yok.',
-                'Danışanlarınız formları doldurduğunda burada görünecek.')
-          else
-            for (final a in list) _assessTile(context, a),
-          if (hasItems) ...[
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: () => widget.onNavigate?.call('forms'),
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Yeni Form',
-                  style: TextStyle()),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _assessTile(BuildContext context, Assessment a) {
-    final c = _d.clientById(a.clientId);
-    final f = _d.formById(a.formId);
-    return InkWell(
-      onTap: () => widget.onNavigate?.call('results'),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.bg2.withValues(alpha: .45),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.info.withValues(alpha: .12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child:
-                  const Icon(Icons.assignment, color: AppColors.info, size: 17),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    f?.title ?? 'Bilinmeyen Form',
-                    style: const TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.text),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${c?.name ?? 'Anonim Danışan'} · ${fmtDateTime(a.submittedAt)}',
-                    style: const TextStyle(
-                        fontSize: 11.5,
-                        color: AppColors.muted),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 6),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppColors.infoSoft,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.visibility_outlined,
-                      size: 12, color: AppColors.info),
-                  SizedBox(width: 4),
-                  Text('Görüntüle',
-                      style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.info)),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -760,8 +608,11 @@ class _OverviewTabState extends State<OverviewTab> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (list.isEmpty)
-            _emptyBox(Icons.check_circle_outline, 'Açık görev bulunmuyor.',
-                'Takip gerektiren işler için görev ekleyebilirsiniz.')
+            _emptyBox(
+              Icons.check_circle_outline,
+              'Açık görev bulunmuyor.',
+              'Takip gerektiren işler için görev ekleyebilirsiniz.',
+            )
           else
             for (final t in list) _taskTile(context, t),
           if (hasItems) ...[
@@ -769,8 +620,7 @@ class _OverviewTabState extends State<OverviewTab> {
             OutlinedButton.icon(
               onPressed: () => widget.onNavigate?.call('tasks'),
               icon: const Icon(Icons.add, size: 16),
-              label: const Text('Görev Ekle',
-                  style: TextStyle()),
+              label: const Text('Görev Ekle', style: TextStyle()),
             ),
           ],
         ],
@@ -800,8 +650,11 @@ class _OverviewTabState extends State<OverviewTab> {
               t.done = true;
               _data.save();
             },
-            icon: Icon(Icons.radio_button_unchecked,
-                size: 20, color: AppColors.muted),
+            icon: Icon(
+              Icons.radio_button_unchecked,
+              size: 20,
+              color: AppColors.muted,
+            ),
           ),
           Expanded(
             child: Column(
@@ -810,9 +663,10 @@ class _OverviewTabState extends State<OverviewTab> {
                 Text(
                   t.text,
                   style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.text),
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
                 ),
                 const SizedBox(height: 3),
                 Wrap(
@@ -821,25 +675,42 @@ class _OverviewTabState extends State<OverviewTab> {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     if (c != null)
-                      Text(c.name,
-                          style: const TextStyle(
-                              fontSize: 11.5,
-                              color: AppColors.muted)),
+                      Text(
+                        c.name,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: AppColors.muted,
+                        ),
+                      ),
                     if (c != null && t.dueDate != null) const Text('·'),
                     if (t.dueDate != null && overdue)
-                      _miniBadge('Gecikti', AppColors.danger, AppColors.dangerSoft)
+                      _miniBadge(
+                        'Gecikti',
+                        AppColors.danger,
+                        AppColors.dangerSoft,
+                      )
                     else if (t.dueDate != null && dueToday)
-                      _miniBadge('Bugün', AppColors.warning, AppColors.warningSoft)
+                      _miniBadge(
+                        'Bugün',
+                        AppColors.warning,
+                        AppColors.warningSoft,
+                      )
                     else if (t.dueDate != null)
-                      Text(fmtDate(DateTime.parse(t.dueDate!)),
-                          style: const TextStyle(
-                              fontSize: 11.5,
-                              color: AppColors.muted))
+                      Text(
+                        fmtDate(DateTime.parse(t.dueDate!)),
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: AppColors.muted,
+                        ),
+                      )
                     else
-                      const Text('Tarih yok',
-                          style: TextStyle(
-                              fontSize: 11.5,
-                              color: AppColors.muted)),
+                      const Text(
+                        'Tarih yok',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: AppColors.muted,
+                        ),
+                      ),
                     if (t.priority == 'high')
                       _miniBadge('Yüksek', AppColors.info, AppColors.infoSoft),
                   ],
@@ -851,8 +722,11 @@ class _OverviewTabState extends State<OverviewTab> {
             tooltip: 'Sil',
             visualDensity: VisualDensity.compact,
             onPressed: () => _confirmDeleteTask(context, t),
-            icon: const Icon(Icons.delete_outline,
-                size: 18, color: AppColors.danger),
+            icon: const Icon(
+              Icons.delete_outline,
+              size: 18,
+              color: AppColors.danger,
+            ),
           ),
         ],
       ),
@@ -869,9 +743,10 @@ class _OverviewTabState extends State<OverviewTab> {
       child: Text(
         text,
         style: TextStyle(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w700,
-            color: fg),
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+          color: fg,
+        ),
       ),
     );
   }
@@ -881,10 +756,11 @@ class _OverviewTabState extends State<OverviewTab> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Görevi sil',
-            style: TextStyle()),
-        content: Text('"${t.text}" görevi kalıcı olarak silinsin mi?',
-            style: const TextStyle()),
+        title: const Text('Görevi sil', style: TextStyle()),
+        content: Text(
+          '"${t.text}" görevi kalıcı olarak silinsin mi?',
+          style: const TextStyle(),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -903,9 +779,9 @@ class _OverviewTabState extends State<OverviewTab> {
       _data.save();
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(
-            content: Text('Görev silindi.',
-                style: TextStyle())));
+        ..showSnackBar(
+          const SnackBar(content: Text('Görev silindi.', style: TextStyle())),
+        );
     }
   }
 
@@ -915,7 +791,6 @@ class _OverviewTabState extends State<OverviewTab> {
       _Quick(Icons.assignment_outlined, 'Yeni Form', 'forms'),
       _Quick(Icons.person_add_alt, 'Yeni Danışan', 'clients'),
       _Quick(Icons.event_available, 'Randevu Planla', 'appointments'),
-      _Quick(Icons.bar_chart, 'Sonuçları Gör', 'results'),
       _Quick(Icons.download_outlined, 'Veri Yedekle', 'settings'),
       _Quick(Icons.folder_open, 'Danışan Dosyası', 'clients'),
     ];
@@ -925,9 +800,10 @@ class _OverviewTabState extends State<OverviewTab> {
         const Text(
           'Hızlı İşlemler',
           style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: AppColors.text),
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: AppColors.text,
+          ),
         ),
         const SizedBox(height: 10),
         LayoutBuilder(
@@ -982,10 +858,11 @@ class _OverviewTabState extends State<OverviewTab> {
                 softWrap: true,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                    fontSize: 12.5,
-                    height: 1.15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text2),
+                  fontSize: 12.5,
+                  height: 1.15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text2,
+                ),
               ),
             ),
             const Icon(Icons.chevron_right, size: 18, color: AppColors.muted),
@@ -1020,9 +897,10 @@ class _OverviewTabState extends State<OverviewTab> {
                 child: Text(
                   title,
                   style: const TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.text),
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                  ),
                 ),
               ),
               trailing,
@@ -1059,18 +937,17 @@ class _OverviewTabState extends State<OverviewTab> {
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.text2),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.text2,
+            ),
           ),
           if (subtitle.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 11.5,
-                  color: AppColors.muted),
+              style: const TextStyle(fontSize: 11.5, color: AppColors.muted),
             ),
           ],
         ],
@@ -1099,10 +976,7 @@ class _OverviewTabState extends State<OverviewTab> {
       ),
       child: Text(
         label,
-        style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: fg),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg),
       ),
     );
   }

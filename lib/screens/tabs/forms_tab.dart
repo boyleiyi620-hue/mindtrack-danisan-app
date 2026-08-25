@@ -1,12 +1,16 @@
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/data_store.dart';
+import '../../data/firebase_client_link.dart';
 import '../../data/form_presets.dart';
 import '../../models/app_data.dart';
 import '../../models/assessment.dart';
+import '../../models/client.dart';
 import '../../models/form_entry.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formats.dart';
@@ -99,7 +103,7 @@ class _FormsTabState extends State<FormsTab> {
                     SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Formlar danışanlarınızın değerlendirilmesi için kullanılır; doldurulan her form Sonuçlar sekmesinde analiz edilir.',
+                        'Formu düzenleyebilir, danışana gönderebilir veya bu cihazda örnek olarak doldurabilirsiniz.',
                         style: TextStyle(fontSize: 12, color: AppColors.muted),
                       ),
                     ),
@@ -327,6 +331,19 @@ class _FormsTabState extends State<FormsTab> {
                 icon: const Icon(Icons.edit_note, size: 15),
                 label: const Text('Doldur', style: TextStyle(fontSize: 12.5)),
               ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: const Size(0, 36),
+                ),
+                onPressed: () => _openAssignment(context, f),
+                icon: const Icon(Icons.send_outlined, size: 15),
+                label: const Text(
+                  'Danışana Gönder',
+                  style: TextStyle(fontSize: 12.5),
+                ),
+              ),
               IconButton(
                 tooltip: 'Kopyala',
                 visualDensity: VisualDensity.compact,
@@ -435,6 +452,173 @@ class _FormsTabState extends State<FormsTab> {
             ),
           ),
         );
+    }
+  }
+
+  Future<void> _openAssignment(BuildContext context, FormEntry form) async {
+    final client = await showDialog<Client>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Danışana Form Gönder'),
+        content: SizedBox(
+          width: 520,
+          height: 360,
+          child: _d.clients.isEmpty
+              ? const Center(child: Text('Önce bir danışan ekleyin.'))
+              : ListView.separated(
+                  itemCount: _d.clients.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (ctx, index) {
+                    final client = _d.clients[index];
+                    return ListTile(
+                      leading: CircleAvatar(child: Text(client.initials)),
+                      title: Text(client.name),
+                      subtitle: Text(
+                        client.email.isEmpty ? 'E-posta yok' : client.email,
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(ctx).pop(client),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Vazgeç'),
+          ),
+        ],
+      ),
+    );
+    if (client == null || !mounted) return;
+
+    final auth = await _ensureFirebaseSession(context);
+    if (auth == null || !mounted) return;
+
+    final clientUid = await resolveClientFirebaseUid(client);
+    if (clientUid.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Bu danışan henüz eşleşmemiş. Önce danışan koduyla eşleşmeyi tamamlayın.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('psychologists')
+          .doc(auth.uid)
+          .collection('tasks')
+          .add({
+            'psychologistId': auth.uid,
+            'clientId': client.id,
+            'clientFirebaseUid': clientUid,
+            'clientName': client.name,
+            'clientEmail': client.email,
+            'title': form.title,
+            'description': form.description,
+            'formId': form.id,
+            'formDraft': {
+              'id': form.id,
+              'title': form.title,
+              'description': form.description,
+              'isActive': form.isActive,
+              'questions': form.questions.map((q) => q.toJson()).toList(),
+            },
+            'done': false,
+            'response': '',
+            'structuredAnswers': <String, dynamic>{},
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${form.title} danışana gönderildi.')),
+      );
+    } on FirebaseException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Form gönderilemedi: ${error.message ?? error.code}'),
+        ),
+      );
+    }
+  }
+
+  Future<User?> _ensureFirebaseSession(BuildContext context) async {
+    final current = FirebaseAuth.instance.currentUser;
+    if (current != null) return current;
+
+    final email = widget.data.accounts.current?.email.trim().toLowerCase();
+    if (email == null || email.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Önce hesabınızla giriş yapın.')),
+        );
+      }
+      return null;
+    }
+
+    final password = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Firebase hesabını bağla'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('$email hesabıyla Firebase oturumu açılacak.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: password,
+              autofocus: true,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Hesap şifresi'),
+              onSubmitted: (_) => Navigator.of(ctx).pop(true),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Bağlan'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || password.text.isEmpty) {
+      password.dispose();
+      return null;
+    }
+
+    try {
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password.text,
+      );
+      password.dispose();
+      return credential.user;
+    } on FirebaseAuthException catch (error) {
+      password.dispose();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Firebase oturumu açılamadı: ${error.message ?? error.code}',
+            ),
+          ),
+        );
+      }
+      return null;
     }
   }
 

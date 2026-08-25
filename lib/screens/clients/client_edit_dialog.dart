@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/data_store.dart';
+import '../../data/firebase_client_link.dart';
 import '../../data/diagnosis_codes.dart';
 import '../../models/client.dart';
 import '../../theme/app_theme.dart';
@@ -92,35 +93,6 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
     }
   }
 
-  Future<String> _resolveClientUserId(Client? client) async {
-    final direct = client?.clientUserId.trim() ?? '';
-    if (direct.isNotEmpty || client == null) return direct;
-    final psychologistId = FirebaseAuth.instance.currentUser?.uid;
-    if (psychologistId == null || psychologistId.isEmpty) return '';
-    try {
-      final collection = FirebaseFirestore.instance.collection('pairingCodes');
-      var linked = await collection
-          .where('psychologistId', isEqualTo: psychologistId)
-          .where('clientId', isEqualTo: client.id)
-          .limit(1)
-          .get();
-      if (linked.docs.isEmpty && client.email.trim().isNotEmpty) {
-        linked = await collection
-            .where('psychologistId', isEqualTo: psychologistId)
-            .where('clientEmail', isEqualTo: client.email.trim())
-            .limit(1)
-            .get();
-      }
-      if (linked.docs.isEmpty) return '';
-      final resolved =
-          linked.docs.first.data()['clientUserId']?.toString() ?? '';
-      if (resolved.isNotEmpty) client.clientUserId = resolved;
-      return resolved;
-    } catch (_) {
-      return '';
-    }
-  }
-
   Future<void> _save() async {
     final name = _name.text.trim();
     final email = _email.text.trim();
@@ -140,7 +112,9 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
         .where((t) => t.isNotEmpty)
         .toList();
     final sessionFee = double.tryParse(_sessionFee.text.trim()) ?? 0.0;
+    late final Client savedClient;
     if (existing != null) {
+      savedClient = existing;
       existing.name = name;
       existing.email = email;
       existing.phone = _phone.text.trim();
@@ -157,31 +131,32 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
         ..addAll(_diagnosisCodes);
       existing.updatedAt = now;
     } else {
-      widget.data.data.clients.add(
-        Client(
-          id: widget.data.newId(),
-          name: name,
-          email: email,
-          phone: _phone.text.trim(),
-          birthDate: _birthDate,
-          gender: _gender,
-          sessionFee: sessionFee,
-          tags: tags,
-          diagnosisCodes: List.of(_diagnosisCodes),
-          notes: _notes.text.trim(),
-          status: _status,
-        ),
+      savedClient = Client(
+        id: widget.data.newId(),
+        name: name,
+        email: email,
+        phone: _phone.text.trim(),
+        birthDate: _birthDate,
+        gender: _gender,
+        sessionFee: sessionFee,
+        tags: tags,
+        diagnosisCodes: List.of(_diagnosisCodes),
+        notes: _notes.text.trim(),
+        status: _status,
       );
+      widget.data.data.clients.add(savedClient);
     }
     widget.data.save();
-    final clientUserId = await _resolveClientUserId(existing);
-    if (clientUserId.isNotEmpty) {
-      await FirebaseFirestore.instance
-          .collection('patients')
-          .doc(clientUserId)
-          .set({
-            'diagnosisCodes': List.of(_diagnosisCodes),
-          }, SetOptions(merge: true));
+    try {
+      await syncClientDiagnosisCodes(savedClient);
+    } on FirebaseException catch (error) {
+      if (mounted) {
+        setState(
+          () => _error =
+              'Danışan kaydedildi ancak tanı kodu aktarılmadı: ${error.message ?? error.code}',
+        );
+      }
+      return;
     }
     if (mounted) Navigator.of(context).pop(true);
   }

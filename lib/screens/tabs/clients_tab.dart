@@ -7,19 +7,15 @@ import 'package:flutter/material.dart';
 import '../../data/data_store.dart';
 import '../../models/app_data.dart';
 import '../../models/appointment.dart';
-import '../../models/assessment.dart';
 import '../../models/client.dart';
 import '../../models/note.dart';
 import '../../models/plan.dart';
 import '../../models/finance.dart' as mt;
 import '../../theme/app_theme.dart';
 import '../../utils/formats.dart';
-import '../../utils/risk.dart';
-import '../../utils/scoring.dart';
 import '../clients/client_edit_dialog.dart';
 import '../clients/note_editor_dialog.dart';
 import '../clients/plan_editor_dialog.dart';
-import 'results_tab.dart' show AssessmentDetailDialog;
 
 /// Danışanlar — liste, danışan detayı, SOAP notları, tedavi planı, güvenlik planı.
 class ClientsTab extends StatefulWidget {
@@ -441,12 +437,10 @@ class _ClientsTabState extends State<ClientsTab> {
 
   // ==================== DETAY ====================
   Widget _detailView(BuildContext context, Client c) {
-    final assessments = _d.assessmentsOf(c.id);
     final notes = _d.notesOf(c.id);
     final appts = _d.appointmentsOf(c.id);
     final plans = _d.plansOf(c.id);
     final docs = _d.documentsOf(c.id);
-    final last = assessments.isEmpty ? null : assessments.first;
     final upcoming = appts
         .where(
           (a) => a.date.compareTo(todayIso()) >= 0 && a.status == 'planned',
@@ -457,7 +451,6 @@ class _ClientsTabState extends State<ClientsTab> {
 
     const subs = <(String, IconData, String)>[
       ('overview', Icons.space_dashboard_outlined, 'Genel Bakış'),
-      ('assessments', Icons.assignment_outlined, 'Değerlendirmeler'),
       ('appointments', Icons.calendar_month_outlined, 'Randevular'),
       ('notes', Icons.note_alt_outlined, 'Seans Notları'),
       ('plan', Icons.track_changes_outlined, 'Tedavi Planı'),
@@ -634,12 +627,6 @@ class _ClientsTabState extends State<ClientsTab> {
                             'Seans Ücreti',
                             '₺${c.sessionFee.toStringAsFixed(2)}',
                           ),
-                          (
-                            'Son Değerlendirme',
-                            last != null
-                                ? fmtDateTime(last.submittedAt)
-                                : 'Yok',
-                          ),
                           ('Tamamlanan Seans', '$done seans'),
                           ('Bekleyen Randevu', '$upcoming adet'),
                         ];
@@ -683,6 +670,62 @@ class _ClientsTabState extends State<ClientsTab> {
                   ],
                 ),
               ),
+              if (c.diagnosisCodes.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySoft.withValues(alpha: .55),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: .24),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.local_hospital_outlined,
+                        size: 19,
+                        color: AppColors.primaryDark,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Tanı Kodları',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.text,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: [
+                                for (final code in c.diagnosisCodes)
+                                  Chip(
+                                    label: Text(
+                                      code,
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                    visualDensity: VisualDensity.compact,
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 14),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -712,16 +755,7 @@ class _ClientsTabState extends State<ClientsTab> {
                 ),
               ),
               const SizedBox(height: 14),
-              _subView(
-                context,
-                c,
-                _sub,
-                assessments,
-                notes,
-                appts,
-                plans,
-                docs,
-              ),
+              _subView(context, c, _sub, notes, appts, plans, docs),
               const SizedBox(height: 24),
             ],
           ),
@@ -734,15 +768,12 @@ class _ClientsTabState extends State<ClientsTab> {
     BuildContext context,
     Client c,
     String sub,
-    List<Assessment> assessments,
     List<Note> notes,
     List<Appointment> appts,
     List<Plan> plans,
     List<dynamic> docs,
   ) {
     switch (sub) {
-      case 'assessments':
-        return _assessmentsView(context, c, assessments);
       case 'appointments':
         return _appointmentsView(context, appts);
       case 'notes':
@@ -752,7 +783,7 @@ class _ClientsTabState extends State<ClientsTab> {
       case 'safety':
         return _safetyView(context, c);
       default:
-        return _overviewSubView(context, c, assessments, notes, plans);
+        return _overviewSubView(context, c, notes, plans);
     }
   }
 
@@ -760,7 +791,6 @@ class _ClientsTabState extends State<ClientsTab> {
   Widget _overviewSubView(
     BuildContext context,
     Client c,
-    List<Assessment> assessments,
     List<Note> notes,
     List<Plan> plans,
   ) {
@@ -863,13 +893,6 @@ class _ClientsTabState extends State<ClientsTab> {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-            _panelTitle('Son Değerlendirmeler', 'assessments'),
-            const SizedBox(height: 8),
-            if (assessments.isEmpty)
-              _miniEmpty(Icons.assignment_outlined, 'Değerlendirme yok')
-            else
-              for (final a in assessments.take(3)) _assessTile(context, a),
           ],
         );
         final right = Column(
@@ -1004,108 +1027,6 @@ class _ClientsTabState extends State<ClientsTab> {
             style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
           ),
         ],
-      ),
-    );
-  }
-
-  // ---- Değerlendirmeler ----
-  Widget _assessmentsView(
-    BuildContext context,
-    Client c,
-    List<Assessment> assessments,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (assessments.isEmpty)
-          _miniEmpty(
-            Icons.assignment_outlined,
-            'Bu danışan için henüz değerlendirme yok',
-          )
-        else
-          for (final a in assessments) _assessTile(context, a),
-      ],
-    );
-  }
-
-  Widget _assessTile(BuildContext context, Assessment a) {
-    final f = _d.formById(a.formId);
-    final sc = assessmentScore(_d, a);
-    final risk = isRiskyAssessment(_d, a);
-    return InkWell(
-      onTap: () => showDialog<void>(
-        context: context,
-        builder: (_) =>
-            AssessmentDetailDialog(data: widget.data, assessment: a),
-      ),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: risk
-                ? AppColors.danger.withValues(alpha: .4)
-                : AppColors.border,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: (risk ? AppColors.danger : AppColors.info).withValues(
-                  alpha: .12,
-                ),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                risk ? Icons.warning_amber_rounded : Icons.assignment,
-                size: 17,
-                color: risk ? AppColors.danger : AppColors.info,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    f?.title ?? 'Bilinmeyen Form',
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.text,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    fmtDateTime(a.submittedAt) +
-                        (sc != null
-                            ? ' · Ortalama: ${sc.avg.toStringAsFixed(1)}/${sc.max}'
-                            : ''),
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      color: AppColors.muted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Text(
-              'İncele',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: AppColors.info,
-              ),
-            ),
-            const Icon(Icons.chevron_right, size: 17, color: AppColors.muted),
-          ],
-        ),
       ),
     );
   }
@@ -2088,6 +2009,9 @@ class _ClientsTabState extends State<ClientsTab> {
       'clientUserId': client?.clientUserId ?? '',
       'clientName': client?.name ?? '',
       'clientEmail': client?.email ?? '',
+      'diagnosisCodes': List<String>.of(
+        client?.diagnosisCodes ?? const <String>[],
+      ),
       'createdAt': FieldValue.serverTimestamp(),
       'expiresAt': Timestamp.fromDate(
         DateTime.now().add(const Duration(days: 7)),
