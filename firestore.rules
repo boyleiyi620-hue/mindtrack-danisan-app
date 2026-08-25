@@ -23,7 +23,13 @@ service cloud.firestore {
     }
 
     match /patients/{uid} {
-      allow read, write: if signedIn() && request.auth.uid == uid;
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow update: if signedIn() && (
+        request.auth.uid == uid ||
+        (resource.data.psychologistId == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['diagnosisCodes']))
+      );
     }
 
     match /psychologists/{uid}/appointments/{id} {

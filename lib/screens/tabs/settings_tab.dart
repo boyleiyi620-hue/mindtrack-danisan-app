@@ -78,15 +78,15 @@ class _SettingsTabState extends State<SettingsTab> {
               const Text(
                 'Ayarlar ve Veri',
                 style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.text),
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
               ),
               const SizedBox(height: 4),
               const Text(
                 'Hesap, yedekleme ve gizlilik yönetimi',
-                style: TextStyle(
-                    fontSize: 13.5, color: AppColors.muted),
+                style: TextStyle(fontSize: 13.5, color: AppColors.muted),
               ),
               const SizedBox(height: 18),
               LayoutBuilder(
@@ -158,9 +158,10 @@ class _SettingsTabState extends State<SettingsTab> {
               Text(
                 title,
                 style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.text),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
               ),
             ],
           ),
@@ -175,44 +176,71 @@ class _SettingsTabState extends State<SettingsTab> {
   Widget _modeSettingsCard() {
     return Column(
       children: [
-        _card(Icons.dashboard_customize_outlined, 'Oturum Modu', Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Uygulama özelliklerini ve görünümünü ihtiyacınıza göre özelleştirin.',
-              style: TextStyle(fontSize: 12.5, color: AppColors.muted, height: 1.5),
-            ),
-            const SizedBox(height: 12),
-            _modeRadioTile('standard', 'Standart Oturum', 'Temel psikolog araçları.', Icons.person_outline),
-            _modeRadioTile('commercial', 'Ticari Oturum', 'Standart + Muhasebe ve Ödemeler.', Icons.account_balance_wallet_outlined),
-            _modeRadioTile('training', 'Eğitim ve Gelişim', 'Standart + Süpervizyon ve Eğitim.', Icons.school_outlined),
-          ],
-        )),
-        if (_u.appMode == 'commercial') ...[
-          const SizedBox(height: 16),
-          _card(Icons.account_balance_wallet_outlined, 'Finansal Ayarlar', Column(
+        _card(
+          Icons.dashboard_customize_outlined,
+          'Oturum Modu',
+          Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Varsayılan Seans Ücreti', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              TextFormField(
-                initialValue: _u.defaultSessionFee.toStringAsFixed(0),
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  prefixText: '₺ ',
-                  hintText: 'Örn: 500',
-                  isDense: true,
+              const Text(
+                'Uygulama özelliklerini ve görünümünü ihtiyacınıza göre özelleştirin.',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppColors.muted,
+                  height: 1.5,
                 ),
-                onChanged: (v) {
-                  final fee = double.tryParse(v) ?? 0.0;
-                  _u.defaultSessionFee = fee;
-                  widget.data.accounts.updateUser(_u);
-                },
               ),
-              const SizedBox(height: 4),
-              const Text('Yeni danışan eklendiğinde bu ücret otomatik önerilir.', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+              const SizedBox(height: 12),
+              _modeRadioTile(
+                'standard',
+                'Standart Oturum',
+                'Temel psikolog araçları.',
+                Icons.person_outline,
+              ),
+              _modeRadioTile(
+                'commercial',
+                'Ticari Oturum',
+                'Standart + Muhasebe ve Ödemeler.',
+                Icons.account_balance_wallet_outlined,
+              ),
             ],
-          )),
+          ),
+        ),
+        if (_u.appMode == 'commercial') ...[
+          const SizedBox(height: 16),
+          _card(
+            Icons.account_balance_wallet_outlined,
+            'Finansal Ayarlar',
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Varsayılan Seans Ücreti',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  initialValue: _u.defaultSessionFee.toStringAsFixed(0),
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    prefixText: '₺ ',
+                    hintText: 'Örn: 500',
+                    isDense: true,
+                  ),
+                  onChanged: (v) {
+                    final fee = double.tryParse(v) ?? 0.0;
+                    _u.defaultSessionFee = fee;
+                    widget.data.accounts.updateUser(_u);
+                  },
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Yeni danışan eklendiğinde bu ücret otomatik önerilir.',
+                  style: TextStyle(fontSize: 11, color: AppColors.muted),
+                ),
+              ],
+            ),
+          ),
         ],
       ],
     );
@@ -230,23 +258,46 @@ class _SettingsTabState extends State<SettingsTab> {
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
         margin: const EdgeInsets.only(bottom: 4),
         decoration: BoxDecoration(
-          color: active ? AppColors.primarySoft.withValues(alpha: .5) : Colors.transparent,
+          color: active
+              ? AppColors.primarySoft.withValues(alpha: .5)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: active ? AppColors.primaryDark : AppColors.muted),
+            Icon(
+              icon,
+              size: 20,
+              color: active ? AppColors.primaryDark : AppColors.muted,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontWeight: active ? FontWeight.bold : FontWeight.normal, fontSize: 14)),
-                  Text(desc, style: const TextStyle(fontSize: 11.5, color: AppColors.muted)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: active ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    desc,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: AppColors.muted,
+                    ),
+                  ),
                 ],
               ),
             ),
-            if (active) const Icon(Icons.check_circle, size: 18, color: AppColors.primaryDark),
+            if (active)
+              const Icon(
+                Icons.check_circle,
+                size: 18,
+                color: AppColors.primaryDark,
+              ),
           ],
         ),
       ),
@@ -255,46 +306,52 @@ class _SettingsTabState extends State<SettingsTab> {
 
   // ---------------- Profil ----------------
   Widget _profileCard() {
-    return _card(Icons.person_outline, 'Profil', Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TextField(
-          controller: _name,
-          decoration: const InputDecoration(
-              labelText: 'Adınız ve soyadınız', isDense: true),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _clinic,
-          decoration: const InputDecoration(
+    return _card(
+      Icons.person_outline,
+      'Profil',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _name,
+            decoration: const InputDecoration(
+              labelText: 'Adınız ve soyadınız',
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _clinic,
+            decoration: const InputDecoration(
               labelText: 'Klinik Adı',
               hintText: 'Özel Psikoloji Kliniği',
-              isDense: true),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _email,
-          keyboardType: TextInputType.emailAddress,
-          decoration: InputDecoration(
-            labelText: 'E-posta (giriş için)',
-            hintText: 'ornek@klinik.com',
-            isDense: true,
-            errorText: _profileError,
+              isDense: true,
+            ),
           ),
-        ),
-        const SizedBox(height: 14),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: FilledButton.icon(
-            key: const Key('settings-save-profile'),
-            onPressed: _saveProfile,
-            icon: const Icon(Icons.save_outlined, size: 16),
-            label: const Text('Profili Kaydet',
-                style: TextStyle()),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            decoration: InputDecoration(
+              labelText: 'E-posta (giriş için)',
+              hintText: 'ornek@klinik.com',
+              isDense: true,
+              errorText: _profileError,
+            ),
           ),
-        ),
-      ],
-    ));
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              key: const Key('settings-save-profile'),
+              onPressed: _saveProfile,
+              icon: const Icon(Icons.save_outlined, size: 16),
+              label: const Text('Profili Kaydet', style: TextStyle()),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _saveProfile() {
@@ -320,54 +377,63 @@ class _SettingsTabState extends State<SettingsTab> {
     widget.data.accounts.updateUser(_u);
     widget.onProfileChanged?.call();
     setState(() => _profileError = null);
-    messenger.showSnackBar(const SnackBar(
+    messenger.showSnackBar(
+      const SnackBar(
         content: Text('Profil güncellendi.', style: TextStyle()),
-        behavior: SnackBarBehavior.floating));
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   // ---------------- Şifre ----------------
   Widget _passwordCard() {
-    return _card(Icons.lock_outline, 'Şifre Değiştir', Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TextField(
-          controller: _oldPw,
-          obscureText: true,
-          decoration: const InputDecoration(
-              labelText: 'Mevcut şifre', isDense: true),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _newPw,
-          obscureText: true,
-          decoration: const InputDecoration(
+    return _card(
+      Icons.lock_outline,
+      'Şifre Değiştir',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _oldPw,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: 'Mevcut şifre',
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _newPw,
+            obscureText: true,
+            decoration: const InputDecoration(
               labelText: 'Yeni şifre',
               hintText: 'En az 6 karakter',
-              isDense: true),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _newPw2,
-          obscureText: true,
-          decoration: InputDecoration(
-            labelText: 'Tekrar',
-            isDense: true,
-            errorText: _pwError,
+              isDense: true,
+            ),
           ),
-        ),
-        const SizedBox(height: 14),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: OutlinedButton.icon(
-            key: const Key('settings-change-password'),
-            onPressed: _changePassword,
-            icon: const Icon(Icons.refresh, size: 16),
-            label: const Text('Şifreyi Güncelle',
-                style: TextStyle()),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _newPw2,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: 'Tekrar',
+              isDense: true,
+              errorText: _pwError,
+            ),
           ),
-        ),
-      ],
-    ));
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              key: const Key('settings-change-password'),
+              onPressed: _changePassword,
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('Şifreyi Güncelle', style: TextStyle()),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _changePassword() {
@@ -398,69 +464,79 @@ class _SettingsTabState extends State<SettingsTab> {
     _newPw.clear();
     _newPw2.clear();
     setState(() => _pwError = null);
-    messenger.showSnackBar(const SnackBar(
+    messenger.showSnackBar(
+      const SnackBar(
         content: Text('Şifreniz güncellendi.', style: TextStyle()),
-        behavior: SnackBarBehavior.floating));
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   // ---------------- PIN kilidi ----------------
   Widget _pinCard() {
     final hasPin = _u.hasPin;
-    return _card(Icons.shield_outlined, 'Uygulama Kilidi (PIN)', Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Icon(
-              hasPin ? Icons.check_circle : Icons.info_outline,
-              size: 17,
-              color: hasPin ? AppColors.success : AppColors.muted,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                hasPin
-                    ? 'PIN aktif — ${_u.lockTimeout} dk otomatik kilit'
-                    : 'PIN kilidi şu an kapalı.',
-                style: TextStyle(
+    return _card(
+      Icons.shield_outlined,
+      'Uygulama Kilidi (PIN)',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                hasPin ? Icons.check_circle : Icons.info_outline,
+                size: 17,
+                color: hasPin ? AppColors.success : AppColors.muted,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  hasPin
+                      ? 'PIN aktif — ${_u.lockTimeout} dk otomatik kilit'
+                      : 'PIN kilidi şu an kapalı.',
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: hasPin ? AppColors.success : AppColors.text2),
+                    color: hasPin ? AppColors.success : AppColors.text2,
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Belirlenen süre işlem yapılmazsa veya uygulama arka plana alınırsa otomatik kilitlenir. PIN yalnızca bu cihazda saklanır.',
-          style: TextStyle(
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Belirlenen süre işlem yapılmazsa veya uygulama arka plana alınırsa otomatik kilitlenir. PIN yalnızca bu cihazda saklanır.',
+            style: TextStyle(
               fontSize: 12.5,
               color: AppColors.muted,
-              height: 1.5),
-        ),
-        const SizedBox(height: 14),
-        Wrap(
-          spacing: 10,
-          runSpacing: 8,
-          children: [
-            FilledButton.icon(
-              key: const Key('settings-open-pin'),
-              onPressed: _openPinSetup,
-              icon: const Icon(Icons.lock_outline, size: 16),
-              label: Text(hasPin ? 'PIN Ayarları' : 'PIN Kur',
-                  style: const TextStyle()),
+              height: 1.5,
             ),
-            if (hasPin)
-              OutlinedButton.icon(
-                onPressed: widget.onLockRequest,
-                icon: const Icon(Icons.lock, size: 16),
-                label: const Text('Şimdi Kilitle',
-                    style: TextStyle()),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                key: const Key('settings-open-pin'),
+                onPressed: _openPinSetup,
+                icon: const Icon(Icons.lock_outline, size: 16),
+                label: Text(
+                  hasPin ? 'PIN Ayarları' : 'PIN Kur',
+                  style: const TextStyle(),
+                ),
               ),
-          ],
-        ),
-      ],
-    ));
+              if (hasPin)
+                OutlinedButton.icon(
+                  onPressed: widget.onLockRequest,
+                  icon: const Icon(Icons.lock, size: 16),
+                  label: const Text('Şimdi Kilitle', style: TextStyle()),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _openPinSetup() async {
@@ -479,57 +555,61 @@ class _SettingsTabState extends State<SettingsTab> {
   // ---------------- Yedekleme ----------------
   Widget _backupCard() {
     final kb = (widget.data.sizeBytes / 1024).clamp(1.0, 1e9).round();
-    return _card(Icons.storage_outlined, 'Yedekleme ve Geri Yükleme', Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Tüm verileriniz bu cihazda saklanıyor (yaklaşık $kb KB). Cihaz değiştirmeden veya veri kaybı riskine karşı düzenli yedek alın.'
-          '${_u.lastBackupAt > 0 ? '\nSon yedek: ${fmtDateTime(_u.lastBackupAt)}' : ''}',
-          style: const TextStyle(
+    return _card(
+      Icons.storage_outlined,
+      'Yedekleme ve Geri Yükleme',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Tüm verileriniz bu cihazda saklanıyor (yaklaşık $kb KB). Cihaz değiştirmeden veya veri kaybı riskine karşı düzenli yedek alın.'
+            '${_u.lastBackupAt > 0 ? '\nSon yedek: ${fmtDateTime(_u.lastBackupAt)}' : ''}',
+            style: const TextStyle(
               fontSize: 12.5,
               color: AppColors.text2,
-              height: 1.6),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 10,
-          runSpacing: 8,
-          children: [
-            FilledButton.icon(
-              key: const Key('settings-backup-json'),
-              onPressed: _backupJson,
-              icon: const Icon(Icons.download_outlined, size: 16),
-              label: const Text('Tam Yedek (JSON)',
-                  style: TextStyle()),
+              height: 1.6,
             ),
-            OutlinedButton.icon(
-              key: const Key('settings-restore-backup'),
-              onPressed: _restoreBackup,
-              icon: const Icon(Icons.upload_file_outlined, size: 16),
-              label: const Text('Yedekten Geri Yükle',
-                  style: TextStyle()),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        const Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.shield_outlined, size: 13, color: AppColors.muted),
-            SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                'Yedek dosyanızın güvenli bir yerde saklandığından emin olun; içinde kişisel veriler vardır.',
-                style: TextStyle(
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                key: const Key('settings-backup-json'),
+                onPressed: _backupJson,
+                icon: const Icon(Icons.download_outlined, size: 16),
+                label: const Text('Tam Yedek (JSON)', style: TextStyle()),
+              ),
+              OutlinedButton.icon(
+                key: const Key('settings-restore-backup'),
+                onPressed: _restoreBackup,
+                icon: const Icon(Icons.upload_file_outlined, size: 16),
+                label: const Text('Yedekten Geri Yükle', style: TextStyle()),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.shield_outlined, size: 13, color: AppColors.muted),
+              SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Yedek dosyanızın güvenli bir yerde saklandığından emin olun; içinde kişisel veriler vardır.',
+                  style: TextStyle(
                     fontSize: 11.5,
                     color: AppColors.muted,
-                    height: 1.5),
+                    height: 1.5,
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
-      ],
-    ));
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _backupJson() async {
@@ -544,22 +624,29 @@ class _SettingsTabState extends State<SettingsTab> {
     };
     final content = const JsonEncoder.withIndent('  ').convert(payload);
     final ok = await saveTextFile(
-        'mindtrack-yedek-${todayIso()}.json', content, 'application/json');
+      'mindtrack-yedek-${todayIso()}.json',
+      content,
+      'application/json',
+    );
     if (!ok) {
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Yedek dosyası oluşturulamadı.',
-              style: TextStyle()),
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Yedek dosyası oluşturulamadı.', style: TextStyle()),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.danger));
+          backgroundColor: AppColors.danger,
+        ),
+      );
       return;
     }
     _u.lastBackupAt = DateTime.now().millisecondsSinceEpoch.toDouble();
     widget.data.accounts.updateUser(_u);
     widget.onProfileChanged?.call();
-    messenger.showSnackBar(const SnackBar(
-        content: Text('Yedek dosyası indirildi.',
-            style: TextStyle()),
-        behavior: SnackBarBehavior.floating));
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Yedek dosyası indirildi.', style: TextStyle()),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _restoreBackup() async {
@@ -567,11 +654,10 @@ class _SettingsTabState extends State<SettingsTab> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Yedekten Geri Yükle',
-            style: TextStyle()),
+        title: const Text('Yedekten Geri Yükle', style: TextStyle()),
         content: const Text(
           'Mevcut tüm veriler seçeceğiniz yedek dosyasındaki verilerle değiştirilecek. Bu işlem geri alınamaz. Devam etmek istiyor musunuz?',
-          style: TextStyle( height: 1.5),
+          style: TextStyle(height: 1.5),
         ),
         actions: [
           TextButton(
@@ -615,44 +701,76 @@ class _SettingsTabState extends State<SettingsTab> {
       _u.lastBackupAt = DateTime.now().millisecondsSinceEpoch.toDouble();
       widget.data.accounts.updateUser(_u);
       widget.onProfileChanged?.call();
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Yedek başarıyla geri yüklendi.',
-              style: TextStyle()),
-          behavior: SnackBarBehavior.floating));
-    } catch (_) {
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Geri yükleme başarısız: geçersiz dosya.',
-              style: TextStyle()),
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Yedek başarıyla geri yüklendi.', style: TextStyle()),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.danger));
+        ),
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Geri yükleme başarısız: geçersiz dosya.',
+            style: TextStyle(),
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.danger,
+        ),
+      );
     }
   }
 
   // ---------------- Dışa Aktarım ----------------
   Widget _exportCard() {
-    return _card(Icons.download_outlined, 'Dışa Aktarım (CSV)', Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Wrap(
-          spacing: 10,
-          runSpacing: 8,
-          children: [
-            _csvButton('Danışanlar', Icons.people_outline, 'clients', const Key('export-clients-csv')),
-            _csvButton('Randevular', Icons.calendar_month_outlined, 'appointments', const Key('export-appts-csv')),
-            _csvButton('Seans Notları', Icons.note_alt_outlined, 'notes', const Key('export-notes-csv')),
-            _csvButton('Tedavi Planı', Icons.flag_outlined, 'plans', const Key('export-plans-csv')),
-          ],
-        ),
-        const SizedBox(height: 10),
-        const Text(
-          'CSV dosyalarını Excel veya benzeri programlarla açabilirsiniz.',
-          style: TextStyle(
+    return _card(
+      Icons.download_outlined,
+      'Dışa Aktarım (CSV)',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              _csvButton(
+                'Danışanlar',
+                Icons.people_outline,
+                'clients',
+                const Key('export-clients-csv'),
+              ),
+              _csvButton(
+                'Randevular',
+                Icons.calendar_month_outlined,
+                'appointments',
+                const Key('export-appts-csv'),
+              ),
+              _csvButton(
+                'Seans Notları',
+                Icons.note_alt_outlined,
+                'notes',
+                const Key('export-notes-csv'),
+              ),
+              _csvButton(
+                'Tedavi Planı',
+                Icons.flag_outlined,
+                'plans',
+                const Key('export-plans-csv'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'CSV dosyalarını Excel veya benzeri programlarla açabilirsiniz.',
+            style: TextStyle(
               fontSize: 11.5,
               color: AppColors.muted,
-              height: 1.5),
-        ),
-      ],
-    ));
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _csvButton(String label, IconData icon, String kind, Key key) {
@@ -664,8 +782,7 @@ class _SettingsTabState extends State<SettingsTab> {
       ),
       onPressed: () => _exportCsv(kind),
       icon: Icon(icon, size: 15, color: AppColors.primaryDark),
-      label: Text(label,
-          style: const TextStyle( fontSize: 13)),
+      label: Text(label, style: const TextStyle(fontSize: 13)),
     );
   }
 
@@ -679,76 +796,88 @@ class _SettingsTabState extends State<SettingsTab> {
       _ => (<Map<String, Object?>>[], 'dosya-${todayIso()}.csv'),
     };
     if (rows.isEmpty) {
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Dışa aktarılacak kayıt bulunamadı.',
-              style: TextStyle()),
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Dışa aktarılacak kayıt bulunamadı.',
+            style: TextStyle(),
+          ),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.warning));
+          backgroundColor: AppColors.warning,
+        ),
+      );
       return;
     }
     final ok = await saveTextFile(
-        filename, _rowsToCsv(rows), 'text/csv;charset=utf-8');
-    messenger.showSnackBar(SnackBar(
-      content: Text(ok ? 'CSV dosyası indirildi.' : 'Dosya oluşturulamadı.',
-          style: const TextStyle()),
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: ok ? null : AppColors.danger,
-    ));
+      filename,
+      _rowsToCsv(rows),
+      'text/csv;charset=utf-8',
+    );
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          ok ? 'CSV dosyası indirildi.' : 'Dosya oluşturulamadı.',
+          style: const TextStyle(),
+        ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: ok ? null : AppColors.danger,
+      ),
+    );
   }
 
   List<Map<String, Object?>> _clientRows() => [
-        for (final c in _d.clients)
-          {
-            'Ad': c.name,
-            'E-posta': c.email,
-            'Telefon': c.phone,
-            'Doğum Tarihi': c.birthDate,
-            'Cinsiyet': c.gender,
-            'Etiketler': c.tags.join('; '),
-            'Notlar': c.notes,
-            'Durum': clientStatusLabel(c.status),
-          }
-      ];
+    for (final c in _d.clients)
+      {
+        'Ad': c.name,
+        'E-posta': c.email,
+        'Telefon': c.phone,
+        'Doğum Tarihi': c.birthDate,
+        'Cinsiyet': c.gender,
+        'Etiketler': c.tags.join('; '),
+        'Notlar': c.notes,
+        'Durum': clientStatusLabel(c.status),
+      },
+  ];
 
   List<Map<String, Object?>> _appointmentRows() => [
-        for (final a in _d.appointments)
-          {
-            'Tarih': fmtIsoDate(a.date),
-            'Saat': a.time,
-            'Danışan': _d.clientById(a.clientId)?.name ?? '',
-            'Tür': apptTypeLabel(a.type),
-            'Durum': apptStatusLabel(a.status),
-            'Süre': '${a.durationMin} dk',
-            'Not': a.notes,
-          }
-      ];
+    for (final a in _d.appointments)
+      {
+        'Tarih': fmtIsoDate(a.date),
+        'Saat': a.time,
+        'Danışan': _d.clientById(a.clientId)?.name ?? '',
+        'Tür': apptTypeLabel(a.type),
+        'Durum': apptStatusLabel(a.status),
+        'Süre': '${a.durationMin} dk',
+        'Not': a.notes,
+      },
+  ];
 
   List<Map<String, Object?>> _noteRows() => [
-        for (final n in _d.notes)
-          {
-            'Tarih': fmtDateTime(n.date),
-            'Danışan': _d.clientById(n.clientId)?.name ?? '',
-            'Başlık': n.title,
-            'Ruh Hali': n.mood,
-            'Subjektif': n.subjective,
-            'Objektif': n.objective,
-            'Değerlendirme': n.assessment,
-            'Plan': n.plan,
-          }
-      ];
+    for (final n in _d.notes)
+      {
+        'Tarih': fmtDateTime(n.date),
+        'Danışan': _d.clientById(n.clientId)?.name ?? '',
+        'Başlık': n.title,
+        'Ruh Hali': n.mood,
+        'Subjektif': n.subjective,
+        'Objektif': n.objective,
+        'Değerlendirme': n.assessment,
+        'Plan': n.plan,
+      },
+  ];
 
   List<Map<String, Object?>> _planRows() => [
-        for (final p in _d.plans)
-          for (final g in p.goals)
-            {
-              'Danışan': _d.clientById(p.clientId)?.name ?? '',
-              'Plan': p.title,
-              'Hedef': g.text,
-              'Vade': goalCategoryLabel(g.category),
-              'Durum': goalStatusLabel(g.status),
-              'Hedef Tarihi': g.targetDate ?? '',
-            }
-      ];
+    for (final p in _d.plans)
+      for (final g in p.goals)
+        {
+          'Danışan': _d.clientById(p.clientId)?.name ?? '',
+          'Plan': p.title,
+          'Hedef': g.text,
+          'Vade': goalCategoryLabel(g.category),
+          'Durum': goalStatusLabel(g.status),
+          'Hedef Tarihi': g.targetDate ?? '',
+        },
+  ];
 
   String _csvCell(Object? v) {
     var s = v?.toString() ?? '';
@@ -769,33 +898,37 @@ class _SettingsTabState extends State<SettingsTab> {
 
   // ---------------- Veri yönetimi ----------------
   Widget _dataCard() {
-    return _card(Icons.delete_sweep_outlined, 'Veri Yönetimi', Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Text(
-          'Tüm formlar, danışanlar, değerlendirmeler, randevular, seans notları ve tedavi planları kalıcı olarak silinir. Bu işlem geri alınamaz.',
-          style: TextStyle(
+    return _card(
+      Icons.delete_sweep_outlined,
+      'Veri Yönetimi',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Tüm formlar, danışanlar, değerlendirmeler, randevular, seans notları ve tedavi planları kalıcı olarak silinir. Bu işlem geri alınamaz.',
+            style: TextStyle(
               fontSize: 12.5,
               color: AppColors.text2,
-              height: 1.6),
-        ),
-        const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: OutlinedButton.icon(
-            key: const Key('settings-reset-data'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.danger,
-              side: const BorderSide(color: AppColors.danger),
+              height: 1.6,
             ),
-            onPressed: _resetData,
-            icon: const Icon(Icons.restart_alt, size: 16),
-            label: const Text('Tüm Verileri Sıfırla',
-                style: TextStyle()),
           ),
-        ),
-      ],
-    ));
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              key: const Key('settings-reset-data'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.danger,
+                side: const BorderSide(color: AppColors.danger),
+              ),
+              onPressed: _resetData,
+              icon: const Icon(Icons.restart_alt, size: 16),
+              label: const Text('Tüm Verileri Sıfırla', style: TextStyle()),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _resetData() async {
@@ -803,11 +936,10 @@ class _SettingsTabState extends State<SettingsTab> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Tüm verileri sıfırla',
-            style: TextStyle()),
+        title: const Text('Tüm verileri sıfırla', style: TextStyle()),
         content: const Text(
           'Tüm formlar, danışanlar, değerlendirmeler, randevular, seans notları ve tedavi planları kalıcı olarak silinecek. Bu işlem geri alınamaz.',
-          style: TextStyle( height: 1.5),
+          style: TextStyle(height: 1.5),
         ),
         actions: [
           TextButton(
@@ -817,98 +949,123 @@ class _SettingsTabState extends State<SettingsTab> {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Evet, Sıfırla',
-                style: TextStyle()),
+            child: const Text('Evet, Sıfırla', style: TextStyle()),
           ),
         ],
       ),
     );
     if (ok != true || !mounted) return;
     widget.data.resetAll();
-    messenger.showSnackBar(const SnackBar(
-        content: Text('Tüm veriler sıfırlandı.',
-            style: TextStyle()),
-        behavior: SnackBarBehavior.floating));
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Tüm veriler sıfırlandı.', style: TextStyle()),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
     widget.onNavigate?.call('overview');
   }
 
   // ---------------- Hakkında ----------------
   Widget _aboutCard() {
-    return _card(Icons.info_outline, 'Uygulama Hakkında', Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(13),
+    return _card(
+      Icons.info_outline,
+      'Uygulama Hakkında',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.monitor_heart_outlined,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
-              child: const Icon(Icons.monitor_heart_outlined,
-                  color: Colors.white, size: 24),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('MindTrack',
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'MindTrack',
                     style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.text)),
-                const Text('Psikolog Değerlendirme Sistemi',
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.muted)),
-                Text('Sürüm ${'1.0'} — Flutter',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  const Text(
+                    'Psikolog Değerlendirme Sistemi',
+                    style: TextStyle(fontSize: 12, color: AppColors.muted),
+                  ),
+                  Text(
+                    'Sürüm ${'1.0'} — Flutter',
                     style: const TextStyle(
-                        fontSize: 11.5,
-                        color: AppColors.muted)),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'Bu uygulama bir klinik takip aracıdır; tıbbi tanı koymaz. Verileriniz yalnızca bu cihazda saklanır ve hiçbir sunucuya gönderilmez. Tarayıcı verilerini temizlerseniz yedek almadan veriler silinebilir.',
-          style: TextStyle(
+                      fontSize: 11.5,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Bu uygulama bir klinik takip aracıdır; tıbbi tanı koymaz. Verileriniz yalnızca bu cihazda saklanır ve hiçbir sunucuya gönderilmez. Tarayıcı verilerini temizlerseniz yedek almadan veriler silinebilir.',
+            style: TextStyle(
               fontSize: 12.5,
               color: AppColors.text2,
-              height: 1.7),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 10,
-          runSpacing: 8,
-          children: [
-            OutlinedButton.icon(
-              key: const Key('settings-open-kvkk'),
-              onPressed: _openKvkk,
-              icon: const Icon(Icons.shield_outlined, size: 16),
-              label: const Text('KVKK / Aydınlatma Metni',
-                  style: TextStyle()),
+              height: 1.7,
             ),
-            OutlinedButton.icon(
-              key: const Key('settings-logout'),
-              onPressed: widget.onLogout,
-              icon: const Icon(Icons.logout, size: 16, color: AppColors.danger),
-              label: const Text('Oturumu Kapat',
-                  style: TextStyle( color: AppColors.danger)),
-            ),
-          ],
-        ),
-      ],
-    ));
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                key: const Key('settings-open-kvkk'),
+                onPressed: _openKvkk,
+                icon: const Icon(Icons.shield_outlined, size: 16),
+                label: const Text(
+                  'KVKK / Aydınlatma Metni',
+                  style: TextStyle(),
+                ),
+              ),
+              OutlinedButton.icon(
+                key: const Key('settings-logout'),
+                onPressed: widget.onLogout,
+                icon: const Icon(
+                  Icons.logout,
+                  size: 16,
+                  color: AppColors.danger,
+                ),
+                label: const Text(
+                  'Oturumu Kapat',
+                  style: TextStyle(color: AppColors.danger),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   void _openKvkk() {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('KVKK / Veri İşleme Aydınlatma Metni',
-            style: TextStyle()),
+        title: const Text(
+          'KVKK / Veri İşleme Aydınlatma Metni',
+          style: TextStyle(),
+        ),
         content: const SingleChildScrollView(
           child: Text(
             '1. Veri Sorumlusu: MindTrack bir yerel uygulamadır; veri sorumlusu kullanan psikologdur. Uygulama sağlayıcısı olarak verilerinize erişimimiz yoktur.\n\n'
@@ -918,10 +1075,7 @@ class _SettingsTabState extends State<SettingsTab> {
             '5. Güvenlik: Şifreler tek yönlü özetleme (SHA-256) ile saklanır. Cihaz düzeyinde ek koruma için işletim sisteminizin disk şifrelemesini etkinleştirmeniz önerilir.\n\n'
             '6. Haklarınız: KVKK kapsamında verilere erişim, düzeltme ve silme haklarınızı bu uygulamanın Ayarlar bölümünden kullanabilirsiniz.\n\n'
             'Uyarı: Bu uygulama tıbbi tanı veya tedavi aracı değildir; bir sağlık profesyonelinin mesleki kararlarını destekleyen bir kayıt aracıdır.',
-            style: TextStyle(
-                fontSize: 13,
-                color: AppColors.text2,
-                height: 1.8),
+            style: TextStyle(fontSize: 13, color: AppColors.text2, height: 1.8),
           ),
         ),
         actions: [

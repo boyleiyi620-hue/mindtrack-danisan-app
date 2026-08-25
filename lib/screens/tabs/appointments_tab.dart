@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../../data/data_store.dart';
 import '../../models/app_data.dart';
 import '../../models/appointment.dart';
@@ -31,7 +34,9 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
         .where((a) => a.date.startsWith(monthKey(_cal.year, _cal.month)))
         .length;
     final upcomingCount = _d.appointments
-        .where((a) => a.date.compareTo(todayIso()) >= 0 && a.status == 'planned')
+        .where(
+          (a) => a.date.compareTo(todayIso()) >= 0 && a.status == 'planned',
+        )
         .length;
 
     return SingleChildScrollView(
@@ -44,9 +49,12 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
             children: [
               _header(context, monthAppts, upcomingCount),
               const SizedBox(height: 14),
-              if (_view == 'calendar') _calendar(context)
-              else if (_view == 'week') _weekView(context)
-              else _listView(context),
+              if (_view == 'calendar')
+                _calendar(context)
+              else if (_view == 'week')
+                _weekView(context)
+              else
+                _listView(context),
               const SizedBox(height: 24),
             ],
           ),
@@ -67,9 +75,10 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.text),
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -100,7 +109,11 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
               )
             : Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [Expanded(child: title), const SizedBox(width: 10), actions],
+                children: [
+                  Expanded(child: title),
+                  const SizedBox(width: 10),
+                  actions,
+                ],
               );
       },
     );
@@ -126,38 +139,42 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
               onTap: () => setState(() => _view = v.$1),
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
-                  color: _view == v.$1
-                      ? AppColors.card
-                      : Colors.transparent,
+                  color: _view == v.$1 ? AppColors.card : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: _view == v.$1
                       ? [
                           BoxShadow(
-                              color: Colors.black.withValues(alpha: .06),
-                              blurRadius: 4)
+                            color: Colors.black.withValues(alpha: .06),
+                            blurRadius: 4,
+                          ),
                         ]
                       : null,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(v.$3,
-                        size: 15,
-                        color: _view == v.$1
-                            ? AppColors.primary
-                            : AppColors.muted),
+                    Icon(
+                      v.$3,
+                      size: 15,
+                      color: _view == v.$1
+                          ? AppColors.primary
+                          : AppColors.muted,
+                    ),
                     const SizedBox(width: 5),
                     Text(
                       v.$2,
                       style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: _view == v.$1
-                              ? AppColors.primary
-                              : AppColors.muted),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: _view == v.$1
+                            ? AppColors.primary
+                            : AppColors.muted,
+                      ),
                     ),
                   ],
                 ),
@@ -199,9 +216,10 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
                 monthName(year, month),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.text),
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
               ),
             ),
             IconButton.outlined(
@@ -217,8 +235,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
                 _cal = DateTime.now();
                 _view = 'calendar';
               }),
-              child: const Text('Bugün',
-                  style: TextStyle()),
+              child: const Text('Bugün', style: TextStyle()),
             ),
           ],
         ),
@@ -261,15 +278,15 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
                   Text(
                     s.$2,
                     style: const TextStyle(
-                        fontSize: 11.5,
-                        color: AppColors.muted),
+                      fontSize: 11.5,
+                      color: AppColors.muted,
+                    ),
                   ),
                 ],
               ),
             const Text(
               'Bir güne tıklayarak o güne randevu ekleyebilirsiniz.',
-              style: TextStyle(
-                  fontSize: 11.5, color: AppColors.muted),
+              style: TextStyle(fontSize: 11.5, color: AppColors.muted),
             ),
           ],
         ),
@@ -278,9 +295,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
   }
 
   Widget _calCell(BuildContext context, _CalCell cell, String today) {
-    final appts = _d.appointments
-        .where((a) => a.date == cell.date)
-        .toList()
+    final appts = _d.appointments.where((a) => a.date == cell.date).toList()
       ..sort((a, b) => a.time.compareTo(b.time));
     final isToday = cell.date == today;
     final isPast = cell.date.compareTo(today) < 0;
@@ -292,7 +307,11 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
         if (appts.isNotEmpty) {
           _openDayDialog(context, cell.date);
         } else if (isPast) {
-          _toast(context, 'Geçmiş bir tarihe randevu eklenemez.', isError: true);
+          _toast(
+            context,
+            'Geçmiş bir tarihe randevu eklenemez.',
+            isError: true,
+          );
         } else {
           _openApptDialog(context, date: cell.date);
         }
@@ -304,15 +323,15 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
           color: isToday
               ? AppColors.primarySoft
               : cell.other
-                  ? AppColors.bg2.withValues(alpha: .35)
-                  : AppColors.card,
+              ? AppColors.bg2.withValues(alpha: .35)
+              : AppColors.card,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isToday
                 ? AppColors.primary.withValues(alpha: .4)
                 : cell.other
-                    ? Colors.transparent
-                    : AppColors.border,
+                ? Colors.transparent
+                : AppColors.border,
           ),
         ),
         child: Column(
@@ -321,26 +340,30 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
             Text(
               '${cell.day}',
               style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
-                  color: isToday
-                      ? AppColors.primaryDark
-                      : isPast
-                          ? AppColors.muted.withValues(alpha: .6)
-                          : AppColors.text2),
+                fontSize: 11,
+                fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
+                color: isToday
+                    ? AppColors.primaryDark
+                    : isPast
+                    ? AppColors.muted.withValues(alpha: .6)
+                    : AppColors.text2,
+              ),
             ),
             const SizedBox(height: 3),
             Expanded(
               child: appts.isEmpty
                   ? (cell.other || isPast
-                      ? const SizedBox.shrink()
-                      : const Align(
-                          alignment: Alignment.topLeft,
-                          child: Text('+',
+                        ? const SizedBox.shrink()
+                        : const Align(
+                            alignment: Alignment.topLeft,
+                            child: Text(
+                              '+',
                               style: TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.muted)),
-                        ))
+                                fontSize: 13,
+                                color: AppColors.muted,
+                              ),
+                            ),
+                          ))
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -352,9 +375,10 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
                             child: Text(
                               '+${appts.length - 3} daha',
                               style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primary),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
                             ),
                           ),
                       ],
@@ -402,9 +426,10 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w600,
-                  color: color),
+                fontSize: 9.5,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
             ),
           ),
         ],
@@ -425,8 +450,8 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
           children: [
             IconButton.outlined(
               tooltip: 'Önceki hafta',
-              onPressed: () => setState(
-                  () => _weekStart = addDaysIso(_weekStart, -7)),
+              onPressed: () =>
+                  setState(() => _weekStart = addDaysIso(_weekStart, -7)),
               icon: const Icon(Icons.chevron_left),
             ),
             Expanded(
@@ -434,9 +459,10 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
                 range,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text),
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text,
+                ),
               ),
             ),
             IconButton.outlined(
@@ -447,10 +473,8 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
             ),
             const SizedBox(width: 8),
             OutlinedButton(
-              onPressed: () =>
-                  setState(() => _weekStart = mondayOfIso(today)),
-              child: const Text('Bugün',
-                  style: TextStyle()),
+              onPressed: () => setState(() => _weekStart = mondayOfIso(today)),
+              child: const Text('Bugün', style: TextStyle()),
             ),
           ],
         ),
@@ -474,9 +498,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
 
   Widget _weekDay(String date, String today) {
     final d = DateTime.parse(date);
-    final appts = _d.appointments
-        .where((a) => a.date == date)
-        .toList()
+    final appts = _d.appointments.where((a) => a.date == date).toList()
       ..sort((a, b) => a.time.compareTo(b.time));
     final names = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
     final isToday = date == today;
@@ -498,9 +520,10 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
           Text(
             '${names[d.weekday - 1]} ${d.day}',
             style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: isToday ? AppColors.primaryDark : AppColors.text2),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: isToday ? AppColors.primaryDark : AppColors.text2,
+            ),
           ),
           const SizedBox(height: 6),
           if (appts.isEmpty)
@@ -508,8 +531,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
               padding: EdgeInsets.symmetric(vertical: 6),
               child: Text(
                 '—',
-                style: TextStyle(
-                    fontSize: 12, color: AppColors.muted),
+                style: TextStyle(fontSize: 12, color: AppColors.muted),
               ),
             )
           else
@@ -530,17 +552,19 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
                       Text(
                         fmtTime(a.time),
                         style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: _calStatusColor(a.status)),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: _calStatusColor(a.status),
+                        ),
                       ),
                       Text(
                         _d.clientById(a.clientId)?.name ?? '?',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.text2),
+                          fontSize: 11,
+                          color: AppColors.text2,
+                        ),
                       ),
                     ],
                   ),
@@ -562,20 +586,22 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
       return (c?.name.toLowerCase().contains(q) ?? false) ||
           (c?.email.toLowerCase().contains(q) ?? false);
     }).toList();
-    final upcoming = list
-        .where((a) => a.date.compareTo(today) >= 0 && a.status == 'planned')
-        .toList()
-      ..sort((a, b) {
-        final c = a.date.compareTo(b.date);
-        return c != 0 ? c : a.time.compareTo(b.time);
-      });
-    final past = list
-        .where((a) => a.date.compareTo(today) < 0 || a.status != 'planned')
-        .toList()
-      ..sort((a, b) {
-        final c = b.date.compareTo(a.date);
-        return c != 0 ? c : b.time.compareTo(a.time);
-      });
+    final upcoming =
+        list
+            .where((a) => a.date.compareTo(today) >= 0 && a.status == 'planned')
+            .toList()
+          ..sort((a, b) {
+            final c = a.date.compareTo(b.date);
+            return c != 0 ? c : a.time.compareTo(b.time);
+          });
+    final past =
+        list
+            .where((a) => a.date.compareTo(today) < 0 || a.status != 'planned')
+            .toList()
+          ..sort((a, b) {
+            final c = b.date.compareTo(a.date);
+            return c != 0 ? c : b.time.compareTo(a.time);
+          });
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -604,9 +630,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
               ['noshow', 'Gelmedi'],
             ])
               ChoiceChip(
-                label: Text(f[1],
-                    style: const TextStyle(
-                        fontSize: 12)),
+                label: Text(f[1], style: const TextStyle(fontSize: 12)),
                 selected: _filter == f[0],
                 onSelected: (_) => setState(() => _filter = f[0]),
                 showCheckmark: false,
@@ -646,10 +670,10 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
               a.status == 'done'
                   ? Icons.check_circle
                   : a.status == 'noshow'
-                      ? Icons.cancel
-                      : a.status == 'cancelled'
-                          ? Icons.block
-                          : Icons.schedule,
+                  ? Icons.cancel
+                  : a.status == 'cancelled'
+                  ? Icons.block
+                  : Icons.schedule,
               size: 17,
               color: statusColor,
             ),
@@ -666,14 +690,18 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.text),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
                     ),
                     const SizedBox(width: 6),
                     if (a.repeatGroup != null)
-                      const Icon(Icons.repeat,
-                          size: 13, color: AppColors.muted),
+                      const Icon(
+                        Icons.repeat,
+                        size: 13,
+                        color: AppColors.muted,
+                      ),
                   ],
                 ),
                 const SizedBox(height: 2),
@@ -682,7 +710,9 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      fontSize: 11.5, color: AppColors.muted),
+                    fontSize: 11.5,
+                    color: AppColors.muted,
+                  ),
                 ),
               ],
             ),
@@ -693,15 +723,21 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
             tooltip: 'Aç',
             visualDensity: VisualDensity.compact,
             onPressed: () => _openApptDialog(context, appt: a),
-            icon: const Icon(Icons.edit_outlined,
-                size: 18, color: AppColors.text2),
+            icon: const Icon(
+              Icons.edit_outlined,
+              size: 18,
+              color: AppColors.text2,
+            ),
           ),
           IconButton(
             tooltip: 'Sil',
             visualDensity: VisualDensity.compact,
             onPressed: () => _confirmDelete(context, a),
-            icon: const Icon(Icons.delete_outline,
-                size: 18, color: AppColors.danger),
+            icon: const Icon(
+              Icons.delete_outline,
+              size: 18,
+              color: AppColors.danger,
+            ),
           ),
         ],
       ),
@@ -718,9 +754,10 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
       child: Text(
         label,
         style: TextStyle(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w700,
-            color: color),
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
       ),
     );
   }
@@ -739,8 +776,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
           const SizedBox(height: 8),
           Text(
             text,
-            style: const TextStyle(
-                fontSize: 13, color: AppColors.text2),
+            style: const TextStyle(fontSize: 13, color: AppColors.text2),
           ),
         ],
       ),
@@ -749,16 +785,15 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
 
   // ==================== GÜN DETAYI ====================
   Future<void> _openDayDialog(BuildContext context, String date) async {
-    final appts = _d.appointments
-        .where((a) => a.date == date)
-        .toList()
+    final appts = _d.appointments.where((a) => a.date == date).toList()
       ..sort((a, b) => a.time.compareTo(b.time));
     await showDialog<void>(
       context: context,
       builder: (ctx) => Dialog(
         insetPadding: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radius)),
+          borderRadius: BorderRadius.circular(AppSizes.radius),
+        ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520, maxHeight: 640),
           child: Column(
@@ -771,9 +806,10 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
                       child: Text(
                         '${fmtDate(DateTime.parse(date), long: true)} · ${appts.length} randevu',
                         style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.text),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.text,
+                        ),
                       ),
                     ),
                     IconButton(
@@ -798,8 +834,9 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
                           child: Text(
                             'Bu tarihte randevu bulunmuyor.',
                             style: TextStyle(
-                                fontSize: 13,
-                                color: AppColors.muted),
+                              fontSize: 13,
+                              color: AppColors.muted,
+                            ),
                           ),
                         ),
                     ],
@@ -814,8 +851,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
                   children: [
                     TextButton(
                       onPressed: () => Navigator.of(ctx).pop(),
-                      child: const Text('Kapat',
-                          style: TextStyle()),
+                      child: const Text('Kapat', style: TextStyle()),
                     ),
                     const SizedBox(width: 8),
                     FilledButton.icon(
@@ -824,8 +860,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
                         _openApptDialog(context, date: date);
                       },
                       icon: const Icon(Icons.event_available, size: 15),
-                      label: const Text('Randevu Ekle',
-                          style: TextStyle()),
+                      label: const Text('Randevu Ekle', style: TextStyle()),
                     ),
                   ],
                 ),
@@ -863,8 +898,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
                 color: statusColor.withValues(alpha: .12),
                 borderRadius: BorderRadius.circular(9),
               ),
-              child: Icon(Icons.schedule,
-                  size: 16, color: statusColor),
+              child: Icon(Icons.schedule, size: 16, color: statusColor),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -874,9 +908,10 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
                   Text(
                     '${fmtTime(a.time)} · ${c?.name ?? 'Bilinmeyen Danışan'}',
                     style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.text),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -884,8 +919,9 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 11.5,
-                        color: AppColors.muted),
+                      fontSize: 11.5,
+                      color: AppColors.muted,
+                    ),
                   ),
                 ],
               ),
@@ -898,8 +934,11 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
   }
 
   // ==================== RANDEVU DİYALOĞU ====================
-  Future<void> _openApptDialog(BuildContext context,
-      {Appointment? appt, String? date}) async {
+  Future<void> _openApptDialog(
+    BuildContext context, {
+    Appointment? appt,
+    String? date,
+  }) async {
     if (date != null && date.compareTo(todayIso()) < 0) {
       _toast(context, 'Geçmiş bir tarihe randevu eklenemez.', isError: true);
       return;
@@ -910,8 +949,8 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
         data: widget.data,
         existing: appt,
         presetDate: date,
-        onSaved: (notify) => _toast(context, notify,
-            isError: notify.contains('çıkamadı')),
+        onSaved: (notify) =>
+            _toast(context, notify, isError: notify.contains('çıkamadı')),
         onDeleteRequested: appt == null
             ? null
             : (a) => _confirmDelete(context, a),
@@ -922,17 +961,15 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
   Future<void> _confirmDelete(BuildContext context, Appointment a) async {
     final group = a.repeatGroup == null
         ? null
-        : _d.appointments
-            .where((x) => x.repeatGroup == a.repeatGroup)
-            .toList();
+        : _d.appointments.where((x) => x.repeatGroup == a.repeatGroup).toList();
     final messenger = ScaffoldMessenger.of(context);
     final bool deleteWhole;
     if (group != null && group.length > 1) {
-      deleteWhole = await showDialog<bool>(
+      deleteWhole =
+          await showDialog<bool>(
             context: context,
             builder: (ctx) => AlertDialog(
-              title: const Text('Tekrarlı randevuyu sil',
-                  style: TextStyle()),
+              title: const Text('Tekrarlı randevuyu sil', style: TextStyle()),
               content: Text(
                 'Bu randevu ${group.length} randevuluk bir tekrar dizisine ait. Sadece bu randevuyu mu, yoksa dizinin tamamını mı silmek istiyorsunuz?',
                 style: const TextStyle(),
@@ -940,20 +977,18 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(ctx).pop(null),
-                  child: const Text('Vazgeç',
-                      style: TextStyle()),
+                  child: const Text('Vazgeç', style: TextStyle()),
                 ),
                 TextButton(
                   onPressed: () => Navigator.of(ctx).pop(false),
-                  child: const Text('Sadece Bu',
-                      style: TextStyle()),
+                  child: const Text('Sadece Bu', style: TextStyle()),
                 ),
                 FilledButton(
                   onPressed: () => Navigator.of(ctx).pop(true),
-                  style:
-                      FilledButton.styleFrom(backgroundColor: AppColors.danger),
-                  child: const Text('Tüm Tekrarlar',
-                      style: TextStyle()),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.danger,
+                  ),
+                  child: const Text('Tüm Tekrarlar', style: TextStyle()),
                 ),
               ],
             ),
@@ -963,8 +998,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Randevuyu sil',
-              style: TextStyle()),
+          title: const Text('Randevuyu sil', style: TextStyle()),
           content: const Text(
             'Bu randevu silinecek. İşlem geri alınamaz.',
             style: TextStyle(),
@@ -972,14 +1006,12 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child:
-                  const Text('Vazgeç', style: TextStyle()),
+              child: const Text('Vazgeç', style: TextStyle()),
             ),
             FilledButton(
               onPressed: () => Navigator.of(ctx).pop(true),
               style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
-              child: const Text('Evet, Sil',
-                  style: TextStyle()),
+              child: const Text('Evet, Sil', style: TextStyle()),
             ),
           ],
         ),
@@ -988,19 +1020,26 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
       deleteWhole = false;
     }
     if (deleteWhole) {
+      await syncRemoteAppointment(a, statusOverride: 'cancelled');
       _d.appointments.removeWhere((x) => x.repeatGroup == a.repeatGroup);
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-            content: Text('${group!.length} randevu silindi.',
-                style: const TextStyle())));
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              '${group!.length} randevu silindi.',
+              style: const TextStyle(),
+            ),
+          ),
+        );
     } else {
+      await syncRemoteAppointment(a, statusOverride: 'cancelled');
       _d.appointments.removeWhere((x) => x.id == a.id);
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(
-            content: Text('Randevu silindi.',
-                style: TextStyle())));
+        ..showSnackBar(
+          const SnackBar(content: Text('Randevu silindi.', style: TextStyle())),
+        );
     }
     widget.data.save();
   }
@@ -1008,10 +1047,54 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
   void _toast(BuildContext context, String msg, {bool isError = false}) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        backgroundColor: isError ? AppColors.danger : null,
-        content: Text(msg, style: const TextStyle()),
-      ));
+      ..showSnackBar(
+        SnackBar(
+          backgroundColor: isError ? AppColors.danger : null,
+          content: Text(msg, style: const TextStyle()),
+        ),
+      );
+  }
+}
+
+Color _appointmentStatusColor(String status) {
+  switch (status) {
+    case 'done':
+      return AppColors.success;
+    case 'cancelled':
+      return AppColors.muted;
+    case 'noshow':
+      return AppColors.danger;
+    default:
+      return AppColors.warning;
+  }
+}
+
+Future<void> syncRemoteAppointment(
+  Appointment appointment, {
+  String? statusOverride,
+}) async {
+  final psychologistId = FirebaseAuth.instance.currentUser?.uid;
+  if (psychologistId == null || psychologistId.isEmpty) return;
+  final notes = appointment.notes;
+  if (!notes.startsWith('request:')) return;
+  final requestId = notes.substring('request:'.length).trim();
+  if (requestId.isEmpty) return;
+  try {
+    await FirebaseFirestore.instance
+        .collection('psychologists')
+        .doc(psychologistId)
+        .collection('appointments')
+        .doc(requestId)
+        .update({
+          'status': statusOverride ?? appointment.status,
+          'date': Timestamp.fromDate(
+            DateTime.parse('${appointment.date} ${appointment.time}:00'),
+          ),
+          'linkedAppointmentId': appointment.id,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+  } catch (_) {
+    // Yerel kayıt korunur; çevrim içi kayıt sonraki işlemde güncellenebilir.
   }
 }
 
@@ -1066,9 +1149,11 @@ class _AppointmentDialogState extends State<AppointmentDialog> {
     _date = a != null && a.date.isNotEmpty
         ? DateTime.parse(a.date.length >= 10 ? a.date.substring(0, 10) : a.date)
         : widget.presetDate != null
-            ? DateTime.parse(widget.presetDate!.substring(0, 10))
-            : today;
-    _time = TextEditingController(text: a?.time.isNotEmpty == true ? a!.time : '10:00');
+        ? DateTime.parse(widget.presetDate!.substring(0, 10))
+        : today;
+    _time = TextEditingController(
+      text: a?.time.isNotEmpty == true ? a!.time : '10:00',
+    );
     _notes = TextEditingController(text: a?.notes ?? '');
     _repeatCount = TextEditingController(text: '4');
     _duration = a?.durationMin ?? 50;
@@ -1091,13 +1176,15 @@ class _AppointmentDialogState extends State<AppointmentDialog> {
       initialDate: isNew && _date.isBefore(DateTime.now())
           ? DateTime.now()
           : _date,
-      firstDate: isNew ? DateTime.now().subtract(const Duration(days: 1)) : DateTime(2000),
+      firstDate: isNew
+          ? DateTime.now().subtract(const Duration(days: 1))
+          : DateTime(2000),
       lastDate: DateTime(2100),
     );
     if (picked != null) setState(() => _date = picked);
   }
 
-  void _save() {
+  Future<void> _save() async {
     final time = _time.text.trim();
     if (_clientId.isEmpty) {
       setState(() => _error = 'Danışan seçin.');
@@ -1115,14 +1202,15 @@ class _AppointmentDialogState extends State<AppointmentDialog> {
     final d = widget.data.data;
 
     // Çakışma kontrolü (uyarı)
-    final mStart = int.parse(time.substring(0, 2)) * 60 +
-        int.parse(time.substring(3, 5));
+    final mStart =
+        int.parse(time.substring(0, 2)) * 60 + int.parse(time.substring(3, 5));
     final mEnd = mStart + _duration;
     final clash = d.appointments.any((x) {
       if (x.id == (widget.existing?.id ?? '')) return false;
       if (x.clientId != _clientId || x.date != iso) return false;
       if (x.status == 'cancelled' || x.status == 'noshow') return false;
-      final s = int.parse(x.time.substring(0, 2)) * 60 +
+      final s =
+          int.parse(x.time.substring(0, 2)) * 60 +
           int.parse(x.time.substring(3, 5));
       final e = s + (x.durationMin > 0 ? x.durationMin : 50);
       return s < mEnd && mStart < e;
@@ -1138,6 +1226,7 @@ class _AppointmentDialogState extends State<AppointmentDialog> {
       existing.status = _status;
       existing.notes = _notes.text.trim();
       widget.data.save();
+      await syncRemoteAppointment(existing);
       Navigator.of(context).pop();
       widget.onSaved?.call('Randevu kaydedildi.');
       return;
@@ -1147,54 +1236,65 @@ class _AppointmentDialogState extends State<AppointmentDialog> {
     final today = todayIso();
     if (_repeat != 'none') {
       final step = _repeat == 'weekly' ? 1 : 2;
-      final count = (_repeatCount.text.trim().isEmpty
-              ? 4
-              : int.tryParse(_repeatCount.text.trim()) ?? 4)
-          .clamp(2, 24);
+      final count =
+          (_repeatCount.text.trim().isEmpty
+                  ? 4
+                  : int.tryParse(_repeatCount.text.trim()) ?? 4)
+              .clamp(2, 24);
       final gid = widget.data.newId();
       final series = <Appointment>[];
       for (var i = 0; i < count; i++) {
         final date = addDaysIso(iso, i * step * 7);
         if (date.compareTo(today) < 0) continue;
-        series.add(Appointment(
-          id: widget.data.newId(),
-          date: date,
-          time: time,
-          clientId: _clientId,
-          type: _type,
-          status: _status,
-          durationMin: _duration,
-          notes: _notes.text.trim(),
-          repeatGroup: gid,
-        ));
+        series.add(
+          Appointment(
+            id: widget.data.newId(),
+            date: date,
+            time: time,
+            clientId: _clientId,
+            type: _type,
+            status: _status,
+            durationMin: _duration,
+            notes: _notes.text.trim(),
+            repeatGroup: gid,
+          ),
+        );
       }
       if (series.isEmpty) {
-        setState(() =>
-            _error = 'Tüm tekrarlar geçmiş tarihe denk geldi, randevu oluşturulamadı.');
+        setState(
+          () => _error =
+              'Tüm tekrarlar geçmiş tarihe denk geldi, randevu oluşturulamadı.',
+        );
         return;
       }
       d.appointments.addAll(series);
       widget.data.save();
       Navigator.of(context).pop();
-      widget.onSaved?.call('${series.length} randevu planlandı (tekrarlı seri).');
+      widget.onSaved?.call(
+        '${series.length} randevu planlandı (tekrarlı seri).',
+      );
       return;
     }
 
-    d.appointments.add(Appointment(
-      id: widget.data.newId(),
-      date: iso,
-      time: time,
-      clientId: _clientId,
-      type: _type,
-      status: _status,
-      durationMin: _duration,
-      notes: _notes.text.trim(),
-    ));
+    d.appointments.add(
+      Appointment(
+        id: widget.data.newId(),
+        date: iso,
+        time: time,
+        clientId: _clientId,
+        type: _type,
+        status: _status,
+        durationMin: _duration,
+        notes: _notes.text.trim(),
+      ),
+    );
     widget.data.save();
     Navigator.of(context).pop();
-    widget.onSaved?.call(clash
-        ? 'Dikkat: Bu danışanın aynı zamana denk gelen bir randevusu daha var.'
-        : 'Randevu kaydedildi.');
+    widget.onSaved?.call(
+      clash
+          ? 'Dikkat: Bu danışanın aynı zamana denk gelen bir randevusu daha var.'
+          : 'Randevu kaydedildi.',
+    );
   }
 
   @override
@@ -1203,7 +1303,8 @@ class _AppointmentDialogState extends State<AppointmentDialog> {
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radius)),
+        borderRadius: BorderRadius.circular(AppSizes.radius),
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560, maxHeight: 700),
         child: Column(
@@ -1214,13 +1315,12 @@ class _AppointmentDialogState extends State<AppointmentDialog> {
                 children: [
                   Expanded(
                     child: Text(
-                      _isNew
-                          ? 'Yeni Randevu'
-                          : 'Randevuyu Düzenle',
+                      _isNew ? 'Yeni Randevu' : 'Randevuyu Düzenle',
                       style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.text),
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -1248,8 +1348,9 @@ class _AppointmentDialogState extends State<AppointmentDialog> {
                         child: const Text(
                           'Randevu oluşturmak için önce bir danışan ekleyin.',
                           style: TextStyle(
-                              fontSize: 13,
-                              color: AppColors.warning),
+                            fontSize: 13,
+                            color: AppColors.warning,
+                          ),
                         ),
                       ),
                     DropdownButtonFormField<String>(
@@ -1278,14 +1379,17 @@ class _AppointmentDialogState extends State<AppointmentDialog> {
                             child: InputDecorator(
                               decoration: const InputDecoration(
                                 labelText: 'Tarih *',
-                                suffixIcon:
-                                    Icon(Icons.calendar_today, size: 16),
+                                suffixIcon: Icon(
+                                  Icons.calendar_today,
+                                  size: 16,
+                                ),
                               ),
                               child: Text(
                                 fmtDate(_date),
                                 style: const TextStyle(
-                                    fontSize: 14,
-                                    color: AppColors.text),
+                                  fontSize: 14,
+                                  color: AppColors.text,
+                                ),
                               ),
                             ),
                           ),
@@ -1338,7 +1442,9 @@ class _AppointmentDialogState extends State<AppointmentDialog> {
                             items: [
                               for (final t in apptTypes.entries)
                                 DropdownMenuItem(
-                                    value: t.key, child: Text(t.value)),
+                                  value: t.key,
+                                  child: Text(t.value),
+                                ),
                             ],
                             onChanged: (v) =>
                                 setState(() => _type = v ?? 'ilk_görüşme'),
@@ -1350,11 +1456,14 @@ class _AppointmentDialogState extends State<AppointmentDialog> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Durum',
-                            style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.text2)),
+                        const Text(
+                          'Durum',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.text2,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         Wrap(
                           spacing: 8,
@@ -1367,15 +1476,42 @@ class _AppointmentDialogState extends State<AppointmentDialog> {
                               ['noshow', 'Gelmedi'],
                             ])
                               ChoiceChip(
-                                label: Text(s[1],
-                                    style: const TextStyle(
-                                        fontSize: 12)),
+                                avatar: _status == s[0]
+                                    ? Icon(
+                                        Icons.check,
+                                        size: 15,
+                                        color: _appointmentStatusColor(s[0]),
+                                      )
+                                    : null,
+                                label: Text(
+                                  s[1],
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: _status == s[0]
+                                        ? FontWeight.w800
+                                        : FontWeight.w500,
+                                    color: _status == s[0]
+                                        ? _appointmentStatusColor(s[0])
+                                        : AppColors.text2,
+                                  ),
+                                ),
                                 selected: _status == s[0],
+                                selectedColor: _appointmentStatusColor(s[0])
+                                    .withValues(alpha: .16),
                                 onSelected: (_) =>
                                     setState(() => _status = s[0]),
                                 showCheckmark: false,
                               ),
                           ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Seçili durum: ${apptStatusLabel(_status)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: _appointmentStatusColor(_status),
+                          ),
                         ),
                       ],
                     ),
@@ -1401,12 +1537,17 @@ class _AppointmentDialogState extends State<AppointmentDialog> {
                         ),
                         items: const [
                           DropdownMenuItem(
-                              value: 'none', child: Text('Tek seferlik')),
+                            value: 'none',
+                            child: Text('Tek seferlik'),
+                          ),
                           DropdownMenuItem(
-                              value: 'weekly', child: Text('Her hafta')),
+                            value: 'weekly',
+                            child: Text('Her hafta'),
+                          ),
                           DropdownMenuItem(
-                              value: 'biweekly',
-                              child: Text('Her 2 haftada bir')),
+                            value: 'biweekly',
+                            child: Text('Her 2 haftada bir'),
+                          ),
                         ],
                         onChanged: (v) => setState(() => _repeat = v ?? 'none'),
                       ),
@@ -1417,8 +1558,7 @@ class _AppointmentDialogState extends State<AppointmentDialog> {
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           labelText: 'Toplam seans',
-                          helperText:
-                              'Tekrarlar aynı saat ve süreyle planlanır; geçmişe denk gelenler atlanır.',
+                          helperText: 'Tekrarlar aynı saat ve süreyle planlanır; geçmişe denk gelenler atlanır.',
                           isDense: true,
                         ),
                       ),
@@ -1433,15 +1573,19 @@ class _AppointmentDialogState extends State<AppointmentDialog> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.error_outline,
-                                size: 18, color: AppColors.danger),
+                            const Icon(
+                              Icons.error_outline,
+                              size: 18,
+                              color: AppColors.danger,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 _error!,
                                 style: const TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.danger),
+                                  fontSize: 13,
+                                  color: AppColors.danger,
+                                ),
                               ),
                             ),
                           ],
@@ -1465,22 +1609,21 @@ class _AppointmentDialogState extends State<AppointmentDialog> {
                         Navigator.of(context).pop();
                         widget.onDeleteRequested?.call(a);
                       },
-                      child: const Text('Sil',
-                          style: TextStyle(
-                              color: AppColors.danger)),
+                      child: const Text(
+                        'Sil',
+                        style: TextStyle(color: AppColors.danger),
+                      ),
                     ),
                   const SizedBox(width: 8),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('İptal',
-                        style: TextStyle()),
+                    child: const Text('İptal', style: TextStyle()),
                   ),
                   const SizedBox(width: 8),
                   FilledButton.icon(
                     onPressed: _save,
                     icon: const Icon(Icons.save_outlined, size: 16),
-                    label: const Text('Kaydet',
-                        style: TextStyle()),
+                    label: const Text('Kaydet', style: TextStyle()),
                   ),
                 ],
               ),

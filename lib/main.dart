@@ -590,12 +590,17 @@ class ClientAppointments extends StatelessWidget {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          final docs = [...snapshot.data!.docs]
-            ..sort(
-              (a, b) =>
-                  _appointmentDate(a.data())
-                      .compareTo(_appointmentDate(b.data())),
-            );
+          final docs =
+              snapshot.data!.docs
+                  .where(
+                    (doc) => doc.data()['status']?.toString() != 'cancelled',
+                  )
+                  .toList()
+                ..sort(
+                  (a, b) =>
+                      _appointmentDate(a.data())
+                          .compareTo(_appointmentDate(b.data())),
+                );
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [

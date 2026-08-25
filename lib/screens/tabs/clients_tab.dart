@@ -50,14 +50,17 @@ class _ClientsTabState extends State<ClientsTab> {
   // ==================== LİSTE ====================
   Widget _listView(BuildContext context) {
     final q = _q.trim().toLowerCase();
-    final clients = _d.clients.where((c) {
-      if (_status.isNotEmpty && (c.status == _status) == false) return false;
-      if (q.isEmpty) return true;
-      return c.name.toLowerCase().contains(q) ||
-          c.email.toLowerCase().contains(q) ||
-          c.phone.contains(q);
-    }).toList()
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    final clients =
+        _d.clients.where((c) {
+          if (_status.isNotEmpty && (c.status == _status) == false)
+            return false;
+          if (q.isEmpty) return true;
+          return c.name.toLowerCase().contains(q) ||
+              c.email.toLowerCase().contains(q) ||
+              c.phone.contains(q);
+        }).toList()..sort(
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
 
     final active = _d.clients.where((c) => c.status != 'archived').length;
     final archived = _d.clients.where((c) => c.status == 'archived').length;
@@ -81,9 +84,10 @@ class _ClientsTabState extends State<ClientsTab> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.text),
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.text,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -91,8 +95,9 @@ class _ClientsTabState extends State<ClientsTab> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            fontSize: 13.5,
-                            color: AppColors.muted),
+                          fontSize: 13.5,
+                          color: AppColors.muted,
+                        ),
                       ),
                     ],
                   );
@@ -115,11 +120,18 @@ class _ClientsTabState extends State<ClientsTab> {
                   return compact
                       ? Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [heading, const SizedBox(height: 12), actions],
+                          children: [
+                            heading,
+                            const SizedBox(height: 12),
+                            actions,
+                          ],
                         )
                       : Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [Expanded(child: heading), actions],
+                          children: [
+                            Expanded(child: heading),
+                            actions,
+                          ],
                         );
                 },
               ),
@@ -149,9 +161,10 @@ class _ClientsTabState extends State<ClientsTab> {
                     ['archived', 'Arşiv'],
                   ])
                     ChoiceChip(
-                      label: Text(chip[1],
-                          style: const TextStyle(
-                              fontSize: 12.5)),
+                      label: Text(
+                        chip[1],
+                        style: const TextStyle(fontSize: 12.5),
+                      ),
                       selected: _status == chip[0],
                       onSelected: (_) => setState(() => _status = chip[0]),
                       showCheckmark: false,
@@ -186,30 +199,32 @@ class _ClientsTabState extends State<ClientsTab> {
                 color: AppColors.primarySoft,
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: const Icon(Icons.people_outline,
-                  size: 28, color: AppColors.primary),
+              child: const Icon(
+                Icons.people_outline,
+                size: 28,
+                color: AppColors.primary,
+              ),
             ),
             const SizedBox(height: 14),
             const Text(
               'Henüz Danışan Yok',
               style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.text),
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
             ),
             const SizedBox(height: 6),
             const Text(
               'İlk danışanınızı ekleyerek değerlendirme sürecine başlayın.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 13, color: AppColors.muted),
+              style: TextStyle(fontSize: 13, color: AppColors.muted),
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: () => _openClientEditor(context),
               icon: const Icon(Icons.person_add_alt, size: 17),
-              label: const Text('İlk Danışanı Ekle',
-                  style: TextStyle()),
+              label: const Text('İlk Danışanı Ekle', style: TextStyle()),
             ),
           ],
         ),
@@ -232,8 +247,7 @@ class _ClientsTabState extends State<ClientsTab> {
           Text(
             'Bu filtreye uygun danışan bulunamadı',
             textAlign: TextAlign.center,
-            style: TextStyle(
-                fontSize: 13, color: AppColors.text2),
+            style: TextStyle(fontSize: 13, color: AppColors.text2),
           ),
         ],
       ),
@@ -248,10 +262,15 @@ class _ClientsTabState extends State<ClientsTab> {
     final lastNoteDays = lastNote == null
         ? null
         : DateTime.now()
-            .difference(DateTime.fromMillisecondsSinceEpoch(lastNote.date.toInt()))
-            .inDays;
-    final upcoming = _d.appointmentsOf(c.id)
-        .where((a) => a.date.compareTo(todayIso()) >= 0 && a.status == 'planned')
+              .difference(
+                DateTime.fromMillisecondsSinceEpoch(lastNote.date.toInt()),
+              )
+              .inDays;
+    final upcoming = _d
+        .appointmentsOf(c.id)
+        .where(
+          (a) => a.date.compareTo(todayIso()) >= 0 && a.status == 'planned',
+        )
         .length;
 
     return Container(
@@ -272,14 +291,18 @@ class _ClientsTabState extends State<ClientsTab> {
           children: [
             CircleAvatar(
               radius: 20,
-              backgroundColor:
-                  c.status == 'archived' ? AppColors.warning.withValues(alpha: .18) : AppColors.primarySoft,
+              backgroundColor: c.status == 'archived'
+                  ? AppColors.warning.withValues(alpha: .18)
+                  : AppColors.primarySoft,
               child: Text(
                 c.initials,
                 style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: c.status == 'archived' ? AppColors.warning : AppColors.primaryDark),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: c.status == 'archived'
+                      ? AppColors.warning
+                      : AppColors.primaryDark,
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -295,9 +318,10 @@ class _ClientsTabState extends State<ClientsTab> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.text),
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.text,
+                          ),
                         ),
                       ),
                       if (c.status != 'active') ...[
@@ -312,7 +336,9 @@ class _ClientsTabState extends State<ClientsTab> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 12.5, color: AppColors.muted),
+                      fontSize: 12.5,
+                      color: AppColors.muted,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Wrap(
@@ -324,22 +350,33 @@ class _ClientsTabState extends State<ClientsTab> {
                             ? 'Son değerlendirme: ${fmtDate(DateTime.fromMillisecondsSinceEpoch(last.submittedAt.toInt()))}'
                             : 'Değerlendirme yok',
                         style: const TextStyle(
-                            fontSize: 11.5, color: AppColors.muted),
+                          fontSize: 11.5,
+                          color: AppColors.muted,
+                        ),
                       ),
                       Text(
                         lastNote != null
-                            ? 'Son seans: ${lastNoteDays == null || lastNoteDays < 0 ? 'bugün' : lastNoteDays == 0 ? 'bugün' : lastNoteDays == 1 ? 'dün' : '$lastNoteDays gün önce'}'
+                            ? 'Son seans: ${lastNoteDays == null || lastNoteDays < 0
+                                  ? 'bugün'
+                                  : lastNoteDays == 0
+                                  ? 'bugün'
+                                  : lastNoteDays == 1
+                                  ? 'dün'
+                                  : '$lastNoteDays gün önce'}'
                             : 'Seans notu yok',
                         style: const TextStyle(
-                            fontSize: 11.5, color: AppColors.muted),
+                          fontSize: 11.5,
+                          color: AppColors.muted,
+                        ),
                       ),
                       if (upcoming > 0)
                         Text(
                           '$upcoming yaklaşan randevu',
                           style: const TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primary),
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
                         ),
                     ],
                   ),
@@ -350,15 +387,21 @@ class _ClientsTabState extends State<ClientsTab> {
               tooltip: 'Düzenle',
               visualDensity: VisualDensity.compact,
               onPressed: () => _openClientEditor(context, client: c),
-              icon: const Icon(Icons.edit_outlined,
-                  size: 18, color: AppColors.text2),
+              icon: const Icon(
+                Icons.edit_outlined,
+                size: 18,
+                color: AppColors.text2,
+              ),
             ),
             IconButton(
               tooltip: 'Sil',
               visualDensity: VisualDensity.compact,
               onPressed: () => _confirmDeleteClient(context, c),
-              icon: const Icon(Icons.delete_outline,
-                  size: 18, color: AppColors.danger),
+              icon: const Icon(
+                Icons.delete_outline,
+                size: 18,
+                color: AppColors.danger,
+              ),
             ),
           ],
         ),
@@ -381,13 +424,17 @@ class _ClientsTabState extends State<ClientsTab> {
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+      ),
       child: Text(
         clientStatusLabel(status),
         style: TextStyle(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w700,
-            color: fg),
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+          color: fg,
+        ),
       ),
     );
   }
@@ -400,8 +447,11 @@ class _ClientsTabState extends State<ClientsTab> {
     final plans = _d.plansOf(c.id);
     final docs = _d.documentsOf(c.id);
     final last = assessments.isEmpty ? null : assessments.first;
-    final upcoming =
-        appts.where((a) => a.date.compareTo(todayIso()) >= 0 && a.status == 'planned').length;
+    final upcoming = appts
+        .where(
+          (a) => a.date.compareTo(todayIso()) >= 0 && a.status == 'planned',
+        )
+        .length;
     final done = appts.where((a) => a.status == 'done').length;
     final age = ageFromBirth(c.birthDate);
 
@@ -427,8 +477,7 @@ class _ClientsTabState extends State<ClientsTab> {
                 child: TextButton.icon(
                   onPressed: () => setState(() => _clientId = null),
                   icon: const Icon(Icons.chevron_left, size: 18),
-                  label: const Text('Danışanlar',
-                      style: TextStyle()),
+                  label: const Text('Danışanlar', style: TextStyle()),
                 ),
               ),
               Container(
@@ -450,18 +499,30 @@ class _ClientsTabState extends State<ClientsTab> {
                             CircleAvatar(
                               radius: 28,
                               backgroundColor: AppColors.primarySoft,
-                              child: Text(c.initials, style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w700,
-                                  color: AppColors.primaryDark)),
+                              child: Text(
+                                c.initials,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primaryDark,
+                                ),
+                              ),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(c.name, maxLines: 2, overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(fontSize: 19,
-                                          fontWeight: FontWeight.w800, color: AppColors.text)),
+                                  Text(
+                                    c.name,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 19,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.text,
+                                    ),
+                                  ),
                                   if (c.status != 'active') ...[
                                     const SizedBox(height: 4),
                                     _statusChip(c.status),
@@ -471,12 +532,27 @@ class _ClientsTabState extends State<ClientsTab> {
                                     Wrap(
                                       spacing: 6,
                                       runSpacing: 4,
-                                      children: [for (final t in c.tags) Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                        decoration: BoxDecoration(color: AppColors.bg2,
-                                            borderRadius: BorderRadius.circular(6)),
-                                        child: Text(t, style: const TextStyle(fontSize: 11, color: AppColors.text2)),
-                                      )],
+                                      children: [
+                                        for (final t in c.tags)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.bg2,
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              t,
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                color: AppColors.text2,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                   ],
                                 ],
@@ -489,27 +565,53 @@ class _ClientsTabState extends State<ClientsTab> {
                           runSpacing: 8,
                           children: [
                             OutlinedButton.icon(
-                              onPressed: () => _openClientEditor(context, client: c),
+                              onPressed: () =>
+                                  _openClientEditor(context, client: c),
                               icon: const Icon(Icons.edit_outlined, size: 15),
-                              label: const Text('Düzenle', style: TextStyle(fontSize: 12.5)),
+                              label: const Text(
+                                'Düzenle',
+                                style: TextStyle(fontSize: 12.5),
+                              ),
                             ),
                             FilledButton.icon(
-                              onPressed: () => widget.onNavigate?.call('appointments'),
+                              onPressed: () =>
+                                  widget.onNavigate?.call('appointments'),
                               icon: const Icon(Icons.event_available, size: 15),
-                              label: const Text('Randevu', style: TextStyle(fontSize: 12.5)),
+                              label: const Text(
+                                'Randevu',
+                                style: TextStyle(fontSize: 12.5),
+                              ),
                             ),
                             OutlinedButton.icon(
                               onPressed: () => _openHomeworkDialog(context, c),
-                              icon: const Icon(Icons.assignment_outlined, size: 15),
-                              label: const Text('Ödevler', style: TextStyle(fontSize: 12.5)),
+                              icon: const Icon(
+                                Icons.assignment_outlined,
+                                size: 15,
+                              ),
+                              label: const Text(
+                                'Ödevler',
+                                style: TextStyle(fontSize: 12.5),
+                              ),
                             ),
                           ],
                         );
                         return narrow
-                            ? Column(crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [identity, const SizedBox(height: 12), actions])
-                            : Row(crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [identity, const SizedBox(width: 12), actions]);
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  identity,
+                                  const SizedBox(height: 12),
+                                  actions,
+                                ],
+                              )
+                            : Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  identity,
+                                  const SizedBox(width: 12),
+                                  actions,
+                                ],
+                              );
                       },
                     ),
                     const SizedBox(height: 14),
@@ -521,12 +623,23 @@ class _ClientsTabState extends State<ClientsTab> {
                         final info = [
                           ('E-posta', c.email.isNotEmpty ? c.email : '-'),
                           ('Telefon', c.phone.isNotEmpty ? c.phone : '-'),
-                          ('Doğum Tarihi',
-                              c.birthDate.isNotEmpty ? '${fmtIsoDate(c.birthDate)}${age != null ? ' ($age yaş)' : ''}' : '-'),
+                          (
+                            'Doğum Tarihi',
+                            c.birthDate.isNotEmpty
+                                ? '${fmtIsoDate(c.birthDate)}${age != null ? ' ($age yaş)' : ''}'
+                                : '-',
+                          ),
                           ('Cinsiyet', c.gender.isNotEmpty ? c.gender : '-'),
-                          ('Seans Ücreti', '₺${c.sessionFee.toStringAsFixed(2)}'),
-                          ('Son Değerlendirme',
-                              last != null ? fmtDateTime(last.submittedAt) : 'Yok'),
+                          (
+                            'Seans Ücreti',
+                            '₺${c.sessionFee.toStringAsFixed(2)}',
+                          ),
+                          (
+                            'Son Değerlendirme',
+                            last != null
+                                ? fmtDateTime(last.submittedAt)
+                                : 'Yok',
+                          ),
                           ('Tamamlanan Seans', '$done seans'),
                           ('Bekleyen Randevu', '$upcoming adet'),
                         ];
@@ -542,19 +655,23 @@ class _ClientsTabState extends State<ClientsTab> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(k,
-                                        style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                            color: AppColors.muted)),
+                                    Text(
+                                      k,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.muted,
+                                      ),
+                                    ),
                                     const SizedBox(height: 2),
                                     Text(
                                       v,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
-                                          fontSize: 13,
-                                          color: AppColors.text),
+                                        fontSize: 13,
+                                        color: AppColors.text,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -582,9 +699,10 @@ class _ClientsTabState extends State<ClientsTab> {
                                 ? AppColors.primaryDark
                                 : AppColors.muted,
                           ),
-                          label: Text(s.$3,
-                              style: const TextStyle(
-                                  fontSize: 12.5)),
+                          label: Text(
+                            s.$3,
+                            style: const TextStyle(fontSize: 12.5),
+                          ),
                           selected: _sub == s.$1,
                           onSelected: (_) => setState(() => _sub = s.$1),
                           showCheckmark: false,
@@ -594,7 +712,16 @@ class _ClientsTabState extends State<ClientsTab> {
                 ),
               ),
               const SizedBox(height: 14),
-              _subView(context, c, _sub, assessments, notes, appts, plans, docs),
+              _subView(
+                context,
+                c,
+                _sub,
+                assessments,
+                notes,
+                appts,
+                plans,
+                docs,
+              ),
               const SizedBox(height: 24),
             ],
           ),
@@ -630,8 +757,13 @@ class _ClientsTabState extends State<ClientsTab> {
   }
 
   // ---- Genel Bakış (danışan) ----
-  Widget _overviewSubView(BuildContext context, Client c,
-      List<Assessment> assessments, List<Note> notes, List<Plan> plans) {
+  Widget _overviewSubView(
+    BuildContext context,
+    Client c,
+    List<Assessment> assessments,
+    List<Note> notes,
+    List<Plan> plans,
+  ) {
     final latestNote = notes.isEmpty ? null : notes.first;
     return LayoutBuilder(
       builder: (context, bc) {
@@ -649,14 +781,31 @@ class _ClientsTabState extends State<ClientsTab> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.payments_outlined, size: 19, color: Colors.green),
+                    const Icon(
+                      Icons.payments_outlined,
+                      size: 19,
+                      color: Colors.green,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Hızlı Tahsilat', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text)),
-                          Text('Seans ücreti: ₺${c.sessionFee.toStringAsFixed(2)}', style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                          const Text(
+                            'Hızlı Tahsilat',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          Text(
+                            'Seans ücreti: ₺${c.sessionFee.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.muted,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -664,10 +813,16 @@ class _ClientsTabState extends State<ClientsTab> {
                       onPressed: () => _quickCollect(context, c),
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.green,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 0,
+                        ),
                         minimumSize: const Size(0, 32),
                       ),
-                      child: const Text('Ödeme Al', style: TextStyle(fontSize: 12)),
+                      child: const Text(
+                        'Ödeme Al',
+                        style: TextStyle(fontSize: 12),
+                      ),
                     ),
                   ],
                 ),
@@ -682,23 +837,28 @@ class _ClientsTabState extends State<ClientsTab> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.shield_outlined,
-                      size: 19, color: AppColors.primaryDark),
+                  const Icon(
+                    Icons.shield_outlined,
+                    size: 19,
+                    color: AppColors.primaryDark,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Güvenlik Planı ${c.hasSafety ? '' : 'yok'}',
                       style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.text),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
                     ),
                   ),
                   TextButton(
                     onPressed: () => setState(() => _sub = 'safety'),
-                    child: const Text('Düzenle',
-                        style: TextStyle(
-                            fontSize: 12.5)),
+                    child: const Text(
+                      'Düzenle',
+                      style: TextStyle(fontSize: 12.5),
+                    ),
                   ),
                 ],
               ),
@@ -709,8 +869,7 @@ class _ClientsTabState extends State<ClientsTab> {
             if (assessments.isEmpty)
               _miniEmpty(Icons.assignment_outlined, 'Değerlendirme yok')
             else
-              for (final a in assessments.take(3))
-                _assessTile(context, a),
+              for (final a in assessments.take(3)) _assessTile(context, a),
           ],
         );
         final right = Column(
@@ -735,18 +894,26 @@ class _ClientsTabState extends State<ClientsTab> {
                       children: [
                         Expanded(
                           child: Text(
-                            latestNote.title.isNotEmpty ? latestNote.title : 'Seans Notu',
+                            latestNote.title.isNotEmpty
+                                ? latestNote.title
+                                : 'Seans Notu',
                             style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.text),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text,
+                            ),
                           ),
                         ),
                         Text(
-                          fmtDate(DateTime.fromMillisecondsSinceEpoch(latestNote.date.toInt())),
+                          fmtDate(
+                            DateTime.fromMillisecondsSinceEpoch(
+                              latestNote.date.toInt(),
+                            ),
+                          ),
                           style: const TextStyle(
-                              fontSize: 11.5,
-                              color: AppColors.muted),
+                            fontSize: 11.5,
+                            color: AppColors.muted,
+                          ),
                         ),
                       ],
                     ),
@@ -755,15 +922,16 @@ class _ClientsTabState extends State<ClientsTab> {
                       latestNote.plan.isNotEmpty
                           ? latestNote.plan
                           : latestNote.subjective.isNotEmpty
-                              ? latestNote.subjective
-                              : latestNote.assessment.isNotEmpty
-                                  ? latestNote.assessment
-                                  : latestNote.objective,
+                          ? latestNote.subjective
+                          : latestNote.assessment.isNotEmpty
+                          ? latestNote.assessment
+                          : latestNote.objective,
                       maxLines: 4,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          fontSize: 12.5,
-                          color: AppColors.text2),
+                        fontSize: 12.5,
+                        color: AppColors.text2,
+                      ),
                     ),
                   ],
                 ),
@@ -786,13 +954,7 @@ class _ClientsTabState extends State<ClientsTab> {
             ],
           );
         }
-        return Column(
-          children: [
-            left,
-            const SizedBox(height: 16),
-            right,
-          ],
-        );
+        return Column(children: [left, const SizedBox(height: 16), right]);
       },
     );
   }
@@ -804,9 +966,10 @@ class _ClientsTabState extends State<ClientsTab> {
           child: Text(
             title,
             style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: AppColors.text),
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: AppColors.text,
+            ),
           ),
         ),
         TextButton(
@@ -838,8 +1001,7 @@ class _ClientsTabState extends State<ClientsTab> {
           const SizedBox(height: 6),
           Text(
             text,
-            style: const TextStyle(
-                fontSize: 12.5, color: AppColors.muted),
+            style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
           ),
         ],
       ),
@@ -848,13 +1010,18 @@ class _ClientsTabState extends State<ClientsTab> {
 
   // ---- Değerlendirmeler ----
   Widget _assessmentsView(
-      BuildContext context, Client c, List<Assessment> assessments) {
+    BuildContext context,
+    Client c,
+    List<Assessment> assessments,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (assessments.isEmpty)
-          _miniEmpty(Icons.assignment_outlined,
-              'Bu danışan için henüz değerlendirme yok')
+          _miniEmpty(
+            Icons.assignment_outlined,
+            'Bu danışan için henüz değerlendirme yok',
+          )
         else
           for (final a in assessments) _assessTile(context, a),
       ],
@@ -868,7 +1035,8 @@ class _ClientsTabState extends State<ClientsTab> {
     return InkWell(
       onTap: () => showDialog<void>(
         context: context,
-        builder: (_) => AssessmentDetailDialog(data: widget.data, assessment: a),
+        builder: (_) =>
+            AssessmentDetailDialog(data: widget.data, assessment: a),
       ),
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -878,9 +1046,10 @@ class _ClientsTabState extends State<ClientsTab> {
           color: AppColors.card,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-              color: risk
-                  ? AppColors.danger.withValues(alpha: .4)
-                  : AppColors.border),
+            color: risk
+                ? AppColors.danger.withValues(alpha: .4)
+                : AppColors.border,
+          ),
         ),
         child: Row(
           children: [
@@ -888,8 +1057,9 @@ class _ClientsTabState extends State<ClientsTab> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: (risk ? AppColors.danger : AppColors.info)
-                    .withValues(alpha: .12),
+                color: (risk ? AppColors.danger : AppColors.info).withValues(
+                  alpha: .12,
+                ),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
@@ -906,9 +1076,10 @@ class _ClientsTabState extends State<ClientsTab> {
                   Text(
                     f?.title ?? 'Bilinmeyen Form',
                     style: const TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.text),
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -917,16 +1088,21 @@ class _ClientsTabState extends State<ClientsTab> {
                             ? ' · Ortalama: ${sc.avg.toStringAsFixed(1)}/${sc.max}'
                             : ''),
                     style: const TextStyle(
-                        fontSize: 11.5, color: AppColors.muted),
+                      fontSize: 11.5,
+                      color: AppColors.muted,
+                    ),
                   ),
                 ],
               ),
             ),
-            const Text('İncele',
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.info)),
+            const Text(
+              'İncele',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.info,
+              ),
+            ),
             const Icon(Icons.chevron_right, size: 17, color: AppColors.muted),
           ],
         ),
@@ -969,26 +1145,27 @@ class _ClientsTabState extends State<ClientsTab> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: (completed
-                      ? AppColors.success
-                      : gone
+              color:
+                  (completed
+                          ? AppColors.success
+                          : gone
                           ? AppColors.danger
                           : AppColors.warning)
-                  .withValues(alpha: .12),
+                      .withValues(alpha: .12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               completed
                   ? Icons.check_circle
                   : gone
-                      ? Icons.cancel
-                      : Icons.schedule,
+                  ? Icons.cancel
+                  : Icons.schedule,
               size: 17,
               color: completed
                   ? AppColors.success
                   : gone
-                      ? AppColors.danger
-                      : AppColors.warning,
+                  ? AppColors.danger
+                  : AppColors.warning,
             ),
           ),
           const SizedBox(width: 10),
@@ -999,9 +1176,10 @@ class _ClientsTabState extends State<ClientsTab> {
                 Text(
                   '${fmtDate(DateTime.parse(a.date))}${a.date == today ? ' · Bugün' : ''} · ${fmtTime(a.time)}',
                   style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.text),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -1009,7 +1187,9 @@ class _ClientsTabState extends State<ClientsTab> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      fontSize: 11.5, color: AppColors.muted),
+                    fontSize: 11.5,
+                    color: AppColors.muted,
+                  ),
                 ),
               ],
             ),
@@ -1023,8 +1203,11 @@ class _ClientsTabState extends State<ClientsTab> {
                 a.status = 'done';
                 widget.data.save();
               },
-              icon: const Icon(Icons.check_circle_outline,
-                  size: 19, color: AppColors.success),
+              icon: const Icon(
+                Icons.check_circle_outline,
+                size: 19,
+                color: AppColors.success,
+              ),
             ),
             IconButton(
               tooltip: 'Gelmedi',
@@ -1033,8 +1216,11 @@ class _ClientsTabState extends State<ClientsTab> {
                 a.status = 'noshow';
                 widget.data.save();
               },
-              icon: const Icon(Icons.cancel_outlined,
-                  size: 19, color: AppColors.danger),
+              icon: const Icon(
+                Icons.cancel_outlined,
+                size: 19,
+                color: AppColors.danger,
+              ),
             ),
           ],
         ],
@@ -1057,13 +1243,17 @@ class _ClientsTabState extends State<ClientsTab> {
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(7)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(7),
+      ),
       child: Text(
         label,
         style: TextStyle(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w700,
-            color: fg),
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+          color: fg,
+        ),
       ),
     );
   }
@@ -1078,14 +1268,15 @@ class _ClientsTabState extends State<ClientsTab> {
           child: FilledButton.icon(
             onPressed: () => _openNoteEditor(context, c),
             icon: const Icon(Icons.add, size: 16),
-            label: const Text('Seans Notu Ekle',
-                style: TextStyle()),
+            label: const Text('Seans Notu Ekle', style: TextStyle()),
           ),
         ),
         const SizedBox(height: 12),
         if (notes.isEmpty)
-          _miniEmpty(Icons.note_alt_outlined,
-              'Henüz seans notu yok. Seans sonrası SOAP notlarınızı buradan tutabilirsiniz.')
+          _miniEmpty(
+            Icons.note_alt_outlined,
+            'Henüz seans notu yok. Seans sonrası SOAP notlarınızı buradan tutabilirsiniz.',
+          )
         else
           for (final n in notes) _noteCard(context, c, n),
       ],
@@ -1116,16 +1307,19 @@ class _ClientsTabState extends State<ClientsTab> {
                 child: Text(
                   n.title.isNotEmpty ? n.title : 'Seans Notu',
                   style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.text),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                  ),
                 ),
               ),
               if (n.mood.isNotEmpty)
                 Container(
                   margin: const EdgeInsets.only(right: 6),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.successSoft,
                     borderRadius: BorderRadius.circular(7),
@@ -1133,31 +1327,37 @@ class _ClientsTabState extends State<ClientsTab> {
                   child: Text(
                     n.mood,
                     style: const TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.success),
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.success,
+                    ),
                   ),
                 ),
               IconButton(
                 tooltip: 'Düzenle',
                 visualDensity: VisualDensity.compact,
                 onPressed: () => _openNoteEditor(context, c, note: n),
-                icon: const Icon(Icons.edit_outlined,
-                    size: 17, color: AppColors.text2),
+                icon: const Icon(
+                  Icons.edit_outlined,
+                  size: 17,
+                  color: AppColors.text2,
+                ),
               ),
               IconButton(
                 tooltip: 'Sil',
                 visualDensity: VisualDensity.compact,
                 onPressed: () => _confirmDeleteNote(context, n),
-                icon: const Icon(Icons.delete_outline,
-                    size: 17, color: AppColors.danger),
+                icon: const Icon(
+                  Icons.delete_outline,
+                  size: 17,
+                  color: AppColors.danger,
+                ),
               ),
             ],
           ),
           Text(
             fmtDateTime(n.date),
-            style: const TextStyle(
-                fontSize: 11.5, color: AppColors.muted),
+            style: const TextStyle(fontSize: 11.5, color: AppColors.muted),
           ),
           const SizedBox(height: 8),
           for (final (k, v) in sections)
@@ -1169,17 +1369,19 @@ class _ClientsTabState extends State<ClientsTab> {
                   Text(
                     k,
                     style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.info),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.info,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     v,
                     style: const TextStyle(
-                        fontSize: 12.5,
-                        color: AppColors.text2,
-                        height: 1.45),
+                      fontSize: 12.5,
+                      color: AppColors.text2,
+                      height: 1.45,
+                    ),
                   ),
                 ],
               ),
@@ -1199,15 +1401,22 @@ class _ClientsTabState extends State<ClientsTab> {
           alignment: Alignment.centerLeft,
           child: FilledButton.icon(
             onPressed: () => _openPlanEditor(context, c, plan: plan),
-            icon: Icon(plan == null ? Icons.add : Icons.edit_outlined, size: 16),
-            label: Text(plan == null ? 'Plan Oluştur' : 'Planı Düzenle',
-                style: const TextStyle()),
+            icon: Icon(
+              plan == null ? Icons.add : Icons.edit_outlined,
+              size: 16,
+            ),
+            label: Text(
+              plan == null ? 'Plan Oluştur' : 'Planı Düzenle',
+              style: const TextStyle(),
+            ),
           ),
         ),
         const SizedBox(height: 12),
         if (plan == null)
-          _miniEmpty(Icons.track_changes_outlined,
-              'Danışanınız için hedefler ve müdahaleler belirleyin.')
+          _miniEmpty(
+            Icons.track_changes_outlined,
+            'Danışanınız için hedefler ve müdahaleler belirleyin.',
+          )
         else ...[
           Container(
             padding: const EdgeInsets.all(16),
@@ -1222,17 +1431,19 @@ class _ClientsTabState extends State<ClientsTab> {
                 Text(
                   plan.title,
                   style: const TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.text),
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                  ),
                 ),
                 if (plan.description.isNotEmpty) ...[
                   const SizedBox(height: 5),
                   Text(
                     plan.description,
                     style: const TextStyle(
-                        fontSize: 12.5,
-                        color: AppColors.text2),
+                      fontSize: 12.5,
+                      color: AppColors.text2,
+                    ),
                   ),
                 ],
                 if (plan.interventions.isNotEmpty) ...[
@@ -1244,7 +1455,9 @@ class _ClientsTabState extends State<ClientsTab> {
                       for (final i in plan.interventions)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 9, vertical: 4),
+                            horizontal: 9,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.infoSoft,
                             borderRadius: BorderRadius.circular(7),
@@ -1252,8 +1465,9 @@ class _ClientsTabState extends State<ClientsTab> {
                           child: Text(
                             i,
                             style: const TextStyle(
-                                fontSize: 11.5,
-                                color: AppColors.info),
+                              fontSize: 11.5,
+                              color: AppColors.info,
+                            ),
                           ),
                         ),
                     ],
@@ -1291,18 +1505,18 @@ class _ClientsTabState extends State<ClientsTab> {
                   g.status == 'achieved'
                       ? Icons.check_circle
                       : g.status == 'dropped'
-                          ? Icons.cancel
-                          : g.status == 'in_progress'
-                              ? Icons.radio_button_checked
-                              : Icons.radio_button_unchecked,
+                      ? Icons.cancel
+                      : g.status == 'in_progress'
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
                   size: 19,
                   color: g.status == 'achieved'
                       ? AppColors.success
                       : g.status == 'dropped'
-                          ? AppColors.danger
-                          : g.status == 'in_progress'
-                              ? AppColors.info
-                              : AppColors.muted,
+                      ? AppColors.danger
+                      : g.status == 'in_progress'
+                      ? AppColors.info
+                      : AppColors.muted,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -1312,14 +1526,15 @@ class _ClientsTabState extends State<ClientsTab> {
                       Text(
                         g.text,
                         style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: g.status == 'achieved'
-                                ? AppColors.muted
-                                : AppColors.text,
-                            decoration: g.status == 'achieved'
-                                ? TextDecoration.lineThrough
-                                : null),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: g.status == 'achieved'
+                              ? AppColors.muted
+                              : AppColors.text,
+                          decoration: g.status == 'achieved'
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
                       ),
                       const SizedBox(height: 3),
                       Wrap(
@@ -1327,16 +1542,23 @@ class _ClientsTabState extends State<ClientsTab> {
                         runSpacing: 4,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          _goalChip(goalCategoryLabel(g.category),
-                              AppColors.primaryDark, AppColors.primarySoft),
-                          _goalChip(goalStatusLabel(g.status),
-                              _statusColor(g.status), _statusBg(g.status)),
+                          _goalChip(
+                            goalCategoryLabel(g.category),
+                            AppColors.primaryDark,
+                            AppColors.primarySoft,
+                          ),
+                          _goalChip(
+                            goalStatusLabel(g.status),
+                            _statusColor(g.status),
+                            _statusBg(g.status),
+                          ),
                           if (g.targetDate != null && g.targetDate!.isNotEmpty)
                             Text(
                               'Hedef: ${fmtIsoDate(g.targetDate!)}',
                               style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.muted),
+                                fontSize: 11,
+                                color: AppColors.muted,
+                              ),
                             ),
                         ],
                       ),
@@ -1386,17 +1608,16 @@ class _ClientsTabState extends State<ClientsTab> {
       child: Text(
         text,
         style: TextStyle(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w700,
-            color: fg),
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+          color: fg,
+        ),
       ),
     );
   }
 
   Widget _planProgress(List<Plan> plans) {
-    final goals = [
-      for (final p in plans) ...p.goals,
-    ];
+    final goals = [for (final p in plans) ...p.goals];
     final counts = <String, int>{
       'pending': 0,
       'in_progress': 0,
@@ -1424,10 +1645,26 @@ class _ClientsTabState extends State<ClientsTab> {
             spacing: 8,
             runSpacing: 6,
             children: [
-              _goalChip('${counts['pending']} Bekliyor', AppColors.warning, AppColors.warningSoft),
-              _goalChip('${counts['in_progress']} Devam Ediyor', AppColors.info, AppColors.infoSoft),
-              _goalChip('${counts['achieved']} Tamamlandı', AppColors.success, AppColors.successSoft),
-              _goalChip('${counts['dropped']} Bırakıldı', AppColors.muted, AppColors.bg2),
+              _goalChip(
+                '${counts['pending']} Bekliyor',
+                AppColors.warning,
+                AppColors.warningSoft,
+              ),
+              _goalChip(
+                '${counts['in_progress']} Devam Ediyor',
+                AppColors.info,
+                AppColors.infoSoft,
+              ),
+              _goalChip(
+                '${counts['achieved']} Tamamlandı',
+                AppColors.success,
+                AppColors.successSoft,
+              ),
+              _goalChip(
+                '${counts['dropped']} Bırakıldı',
+                AppColors.muted,
+                AppColors.bg2,
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -1443,8 +1680,7 @@ class _ClientsTabState extends State<ClientsTab> {
           const SizedBox(height: 5),
           Text(
             total == 0 ? 'Henüz hedef yok' : 'Tamamlanma: %${pct.round()}',
-            style: const TextStyle(
-                fontSize: 11.5, color: AppColors.muted),
+            style: const TextStyle(fontSize: 11.5, color: AppColors.muted),
           ),
         ],
       ),
@@ -1474,11 +1710,14 @@ class _ClientsTabState extends State<ClientsTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Acil Durum Hatları',
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.info)),
+              const Text(
+                'Acil Durum Hatları',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.info,
+                ),
+              ),
               const SizedBox(height: 10),
               for (final line in const [
                 '112 — Acil Sağlık (AMBULANS)',
@@ -1491,17 +1730,19 @@ class _ClientsTabState extends State<ClientsTab> {
                   child: Text(
                     line,
                     style: const TextStyle(
-                        fontSize: 12.5,
-                        color: AppColors.text2),
+                      fontSize: 12.5,
+                      color: AppColors.text2,
+                    ),
                   ),
                 ),
               const SizedBox(height: 6),
               const Text(
                 'Kriz anında danışana bu numaraları hatırlatın; ciddi riskte acil servise yönlendirin.',
                 style: TextStyle(
-                    fontSize: 11.5,
-                    color: AppColors.muted,
-                    height: 1.5),
+                  fontSize: 11.5,
+                  color: AppColors.muted,
+                  height: 1.5,
+                ),
               ),
             ],
           ),
@@ -1516,13 +1757,7 @@ class _ClientsTabState extends State<ClientsTab> {
             ],
           );
         }
-        return Column(
-          children: [
-            form,
-            const SizedBox(height: 16),
-            info,
-          ],
-        );
+        return Column(children: [form, const SizedBox(height: 16), info]);
       },
     );
   }
@@ -1530,22 +1765,42 @@ class _ClientsTabState extends State<ClientsTab> {
   // ==================== DİYALOGLAR / AKSİYONLAR ====================
   Future<void> _openClientEditor(BuildContext context, {Client? client}) async {
     final messenger = ScaffoldMessenger.of(context);
+    final beforeIds = _d.clients.map((c) => c.id).toSet();
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => ClientEditDialog(data: widget.data, existing: client),
     );
     if (ok == true) {
+      Client? created;
+      if (client == null) {
+        for (final candidate in _d.clients) {
+          if (!beforeIds.contains(candidate.id)) {
+            created = candidate;
+            break;
+          }
+        }
+      }
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
+        ..showSnackBar(
+          SnackBar(
             content: Text(
-                client == null ? 'Danışan eklendi.' : 'Danışan güncellendi.',
-                style: const TextStyle())));
+              client == null ? 'Danışan eklendi.' : 'Danışan güncellendi.',
+              style: const TextStyle(),
+            ),
+          ),
+        );
+      if (created != null && mounted) {
+        await _openPairingCodeDialog(context, client: created);
+      }
     }
   }
 
-  Future<void> _openNoteEditor(BuildContext context, Client c,
-      {Note? note}) async {
+  Future<void> _openNoteEditor(
+    BuildContext context,
+    Client c, {
+    Note? note,
+  }) async {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await showDialog<bool>(
       context: context,
@@ -1555,14 +1810,22 @@ class _ClientsTabState extends State<ClientsTab> {
     if (ok == true) {
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-            content: Text(note == null ? 'Seans notu eklendi.' : 'Seans notu güncellendi.',
-                style: const TextStyle())));
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              note == null ? 'Seans notu eklendi.' : 'Seans notu güncellendi.',
+              style: const TextStyle(),
+            ),
+          ),
+        );
     }
   }
 
-  Future<void> _openPlanEditor(BuildContext context, Client c,
-      {Plan? plan}) async {
+  Future<void> _openPlanEditor(
+    BuildContext context,
+    Client c, {
+    Plan? plan,
+  }) async {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await showDialog<bool>(
       context: context,
@@ -1572,9 +1835,16 @@ class _ClientsTabState extends State<ClientsTab> {
     if (ok == true) {
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-            content: Text(plan == null ? 'Tedavi planı kaydedildi.' : 'Tedavi planı güncellendi.',
-                style: const TextStyle())));
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              plan == null
+                  ? 'Tedavi planı kaydedildi.'
+                  : 'Tedavi planı güncellendi.',
+              style: const TextStyle(),
+            ),
+          ),
+        );
     }
   }
 
@@ -1584,8 +1854,10 @@ class _ClientsTabState extends State<ClientsTab> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Notu sil', style: TextStyle()),
-        content: Text('"${n.title.isEmpty ? 'Seans Notu' : n.title}" kalıcı olarak silinsin mi?',
-            style: const TextStyle()),
+        content: Text(
+          '"${n.title.isEmpty ? 'Seans Notu' : n.title}" kalıcı olarak silinsin mi?',
+          style: const TextStyle(),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -1604,8 +1876,9 @@ class _ClientsTabState extends State<ClientsTab> {
       widget.data.save();
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(
-            content: Text('Not silindi.', style: TextStyle())));
+        ..showSnackBar(
+          const SnackBar(content: Text('Not silindi.', style: TextStyle())),
+        );
     }
   }
 
@@ -1625,14 +1898,32 @@ class _ClientsTabState extends State<ClientsTab> {
                 .snapshots(),
             builder: (ctx, snap) {
               if (snap.hasError) {
-                return Text('Ödevler yüklenemedi: ${snap.error}', style: const TextStyle());
+                return Text(
+                  'Ödevler yüklenemedi: ${snap.error}',
+                  style: const TextStyle(),
+                );
               }
               if (!snap.hasData) {
-                return const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()));
+                return const SizedBox(
+                  height: 100,
+                  child: Center(child: CircularProgressIndicator()),
+                );
               }
-              final items = snap.data!.docs.where((d) => d.data()['clientId'] == c.id).toList()
-                ..sort((a, b) => ((b.data()['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0)
-                    .compareTo((a.data()['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0));
+              final items =
+                  snap.data!.docs
+                      .where((d) => d.data()['clientId'] == c.id)
+                      .toList()
+                    ..sort(
+                      (a, b) =>
+                          ((b.data()['createdAt'] as Timestamp?)
+                                      ?.millisecondsSinceEpoch ??
+                                  0)
+                              .compareTo(
+                                (a.data()['createdAt'] as Timestamp?)
+                                        ?.millisecondsSinceEpoch ??
+                                    0,
+                              ),
+                    );
               if (items.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
@@ -1650,15 +1941,25 @@ class _ClientsTabState extends State<ClientsTab> {
                     final status = (d['status'] ?? 'assigned').toString();
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: Text((d['title'] ?? 'Ödev').toString(), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      title: Text(
+                        (d['title'] ?? 'Ödev').toString(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       subtitle: Text(
-                        response.isEmpty ? 'Yanıt bekleniyor · $status' : 'Yanıt: $response',
+                        response.isEmpty
+                            ? 'Yanıt bekleniyor · $status'
+                            : 'Yanıt: $response',
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                       ),
                       trailing: response.isEmpty
                           ? const Icon(Icons.hourglass_empty, size: 18)
-                          : const Icon(Icons.check_circle_outline, color: AppColors.primary, size: 19),
+                          : const Icon(
+                              Icons.check_circle_outline,
+                              color: AppColors.primary,
+                              size: 19,
+                            ),
                     );
                   },
                 ),
@@ -1667,7 +1968,10 @@ class _ClientsTabState extends State<ClientsTab> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Kapat', style: TextStyle())),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Kapat', style: TextStyle()),
+          ),
           FilledButton.icon(
             onPressed: () async {
               Navigator.pop(ctx);
@@ -1681,7 +1985,11 @@ class _ClientsTabState extends State<ClientsTab> {
     );
   }
 
-  Future<void> _createHomework(BuildContext context, Client c, String psychologistId) async {
+  Future<void> _createHomework(
+    BuildContext context,
+    Client c,
+    String psychologistId,
+  ) async {
     final title = TextEditingController();
     final description = TextEditingController();
     final result = await showDialog<bool>(
@@ -1692,15 +2000,31 @@ class _ClientsTabState extends State<ClientsTab> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: title, decoration: const InputDecoration(labelText: 'Ödev başlığı')),
+              TextField(
+                controller: title,
+                decoration: const InputDecoration(labelText: 'Ödev başlığı'),
+              ),
               const SizedBox(height: 10),
-              TextField(controller: description, minLines: 3, maxLines: 6, decoration: const InputDecoration(labelText: 'Açıklama / yönerge')),
+              TextField(
+                controller: description,
+                minLines: 3,
+                maxLines: 6,
+                decoration: const InputDecoration(
+                  labelText: 'Açıklama / yönerge',
+                ),
+              ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Vazgeç', style: TextStyle())),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Gönder', style: TextStyle())),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Vazgeç', style: TextStyle()),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Gönder', style: TextStyle()),
+          ),
         ],
       ),
     );
@@ -1723,40 +2047,94 @@ class _ClientsTabState extends State<ClientsTab> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ödev danışana gönderildi.', style: TextStyle())));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ödev danışana gönderildi.', style: TextStyle()),
+          ),
+        );
       }
     } on FirebaseException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ödev gönderilemedi: ${e.message ?? e.code}', style: const TextStyle())));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Ödev gönderilemedi: ${e.message ?? e.code}',
+              style: const TextStyle(),
+            ),
+          ),
+        );
       }
     }
   }
 
-  Future<void> _openPairingCodeDialog(BuildContext context) async {
+  Future<void> _openPairingCodeDialog(
+    BuildContext context, {
+    Client? client,
+  }) async {
     final auth = await _ensureFirebaseSession(context);
     if (auth == null) return;
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     final random = Random.secure();
-    final code = List.generate(8, (_) => chars[random.nextInt(chars.length)]).join();
+    final code = List.generate(
+      8,
+      (_) => chars[random.nextInt(chars.length)],
+    ).join();
     await FirebaseFirestore.instance.collection('pairingCodes').doc(code).set({
-              'psychologistId': auth.uid,
-        'psychologistEmail': widget.data.accounts.current?.email ?? '',
-        'code': code,
-        'status': 'pending',
-        'clientUserId': '',
-        'clientName': '',
-        'clientEmail': '',
-
+      'psychologistId': auth.uid,
+      'psychologistEmail': widget.data.accounts.current?.email ?? '',
+      'code': code,
+      'status': 'pending',
+      'clientId': client?.id ?? '',
+      'clientUserId': client?.clientUserId ?? '',
+      'clientName': client?.name ?? '',
+      'clientEmail': client?.email ?? '',
       'createdAt': FieldValue.serverTimestamp(),
-      'expiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(days: 7))),
+      'expiresAt': Timestamp.fromDate(
+        DateTime.now().add(const Duration(days: 7)),
+      ),
     });
     if (!mounted) return;
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Danışan eşleşme kodu', style: TextStyle()),
-        content: SelectableText(code, textAlign: TextAlign.center, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: 3)),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Kapat', style: TextStyle()))],
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (client != null) ...[
+              Text(
+                client.name,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+            ],
+            const Text(
+              'Bu kodu danışana verin:',
+              style: TextStyle(color: AppColors.muted),
+            ),
+            const SizedBox(height: 10),
+            SelectableText(
+              code,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 3,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Kod 7 gün geçerlidir.',
+              style: TextStyle(fontSize: 11.5, color: AppColors.muted),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Kapat', style: TextStyle()),
+          ),
+        ],
       ),
     );
   }
@@ -1767,9 +2145,11 @@ class _ClientsTabState extends State<ClientsTab> {
     final email = widget.data.accounts.current?.email.trim().toLowerCase();
     if (email == null || email.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Önce hesabınızla giriş yapın.', style: TextStyle()),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Önce hesabınızla giriş yapın.', style: TextStyle()),
+          ),
+        );
       }
       return null;
     }
@@ -1782,7 +2162,10 @@ class _ClientsTabState extends State<ClientsTab> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('$email hesabıyla Firebase oturumu açılacak.', style: const TextStyle()),
+            Text(
+              '$email hesabıyla Firebase oturumu açılacak.',
+              style: const TextStyle(),
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: password,
@@ -1794,8 +2177,14 @@ class _ClientsTabState extends State<ClientsTab> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Vazgeç', style: TextStyle())),
-          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Bağlan', style: TextStyle())),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Vazgeç', style: TextStyle()),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Bağlan', style: TextStyle()),
+          ),
         ],
       ),
     );
@@ -1813,16 +2202,20 @@ class _ClientsTabState extends State<ClientsTab> {
     } on FirebaseAuthException catch (e) {
       password.dispose();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Firebase oturumu açılamadı: ${e.message ?? e.code}', style: const TextStyle()),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Firebase oturumu açılamadı: ${e.message ?? e.code}',
+              style: const TextStyle(),
+            ),
+          ),
+        );
       }
       return null;
     }
   }
 
-  Future<void> _confirmDeleteClient(
-      BuildContext context, Client c) async {
+  Future<void> _confirmDeleteClient(BuildContext context, Client c) async {
     final nA = _d.assessmentsOf(c.id).length;
     final nN = _d.notesOf(c.id).length;
     final nP = _d.plansOf(c.id).length;
@@ -1859,15 +2252,22 @@ class _ClientsTabState extends State<ClientsTab> {
       widget.data.save();
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(
-            content: Text('Danışan ve tüm kayıtları silindi.',
-                style: TextStyle())));
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Danışan ve tüm kayıtları silindi.',
+              style: TextStyle(),
+            ),
+          ),
+        );
     }
   }
 
   void _quickCollect(BuildContext context, Client c) {
     final amount = c.sessionFee > 0 ? c.sessionFee : 0.0;
-    final controller = TextEditingController(text: amount > 0 ? amount.toStringAsFixed(0) : '');
+    final controller = TextEditingController(
+      text: amount > 0 ? amount.toStringAsFixed(0) : '',
+    );
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1891,7 +2291,10 @@ class _ClientsTabState extends State<ClientsTab> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('İptal'),
+          ),
           FilledButton(
             onPressed: () {
               final newAmt = double.tryParse(controller.text.trim()) ?? 0.0;
@@ -1917,7 +2320,9 @@ class _ClientsTabState extends State<ClientsTab> {
     setState(() => widget.data.data.transactions.add(tx));
     widget.data.save();
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ödeme başarıyla kaydedildi.')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Ödeme başarıyla kaydedildi.')),
+    );
   }
 }
 
@@ -1970,8 +2375,9 @@ class _SafetyFormState extends State<_SafetyForm> {
     widget.data.save();
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(
-          content: Text('Güvenlik planı kaydedildi.')));
+      ..showSnackBar(
+        const SnackBar(content: Text('Güvenlik planı kaydedildi.')),
+      );
   }
 
   @override
@@ -1986,29 +2392,47 @@ class _SafetyFormState extends State<_SafetyForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Kriz / Güvenlik Planı',
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.text)),
+          const Text(
+            'Kriz / Güvenlik Planı',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: AppColors.text,
+            ),
+          ),
           const SizedBox(height: 4),
           const Text(
             'Kriz anlarına hazırlık için danışanla birlikte doldurun.',
-            style: TextStyle(
-                fontSize: 12, color: AppColors.muted),
+            style: TextStyle(fontSize: 12, color: AppColors.muted),
           ),
           const SizedBox(height: 14),
-          _field('Uyarı işaretleri — danışanı riskli hissettiren belirtiler',
-              _warnings, 'Örn: İçine kapanma, uyku bozukluğu, umutsuzluk...', 3),
+          _field(
+            'Uyarı işaretleri — danışanı riskli hissettiren belirtiler',
+            _warnings,
+            'Örn: İçine kapanma, uyku bozukluğu, umutsuzluk...',
+            3,
+          ),
           const SizedBox(height: 10),
-          _field('Baş etme stratejileri — işe yarayan rahatlatıcı yöntemler',
-              _coping, 'Örn: Nefes egzersizi, güvendiği kişiyle konuşmak...', 3),
+          _field(
+            'Baş etme stratejileri — işe yarayan rahatlatıcı yöntemler',
+            _coping,
+            'Örn: Nefes egzersizi, güvendiği kişiyle konuşmak...',
+            3,
+          ),
           const SizedBox(height: 10),
-          _field('Destek kişileri — ad ve telefon (her satıra biri)', _contacts,
-              'Örn: Ayşe (anne) — 05XX XXX XX XX', 3),
+          _field(
+            'Destek kişileri — ad ve telefon (her satıra biri)',
+            _contacts,
+            'Örn: Ayşe (anne) — 05XX XXX XX XX',
+            3,
+          ),
           const SizedBox(height: 10),
-          _field('Acil durum notları', _emergency,
-              'Hastane tercihi, ilaçlar, alerjiler, özel durumlar...', 2),
+          _field(
+            'Acil durum notları',
+            _emergency,
+            'Hastane tercihi, ilaçlar, alerjiler, özel durumlar...',
+            2,
+          ),
           const SizedBox(height: 14),
           Align(
             alignment: Alignment.centerLeft,
@@ -2027,13 +2451,20 @@ class _SafetyFormState extends State<_SafetyForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: AppColors.text2)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: AppColors.text2,
+          ),
+        ),
         const SizedBox(height: 6),
-        TextField(controller: c, maxLines: lines, decoration: InputDecoration(hintText: hint)),
+        TextField(
+          controller: c,
+          maxLines: lines,
+          decoration: InputDecoration(hintText: hint),
+        ),
       ],
     );
   }

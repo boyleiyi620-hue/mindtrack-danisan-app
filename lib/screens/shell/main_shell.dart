@@ -13,15 +13,19 @@ import '../tabs/clients_tab.dart';
 import '../tabs/forms_tab.dart';
 import '../tabs/overview_tab.dart';
 import '../tabs/pdfs_tab.dart';
-import '../tabs/results_tab.dart';
 import '../tabs/settings_tab.dart';
 import '../tabs/tasks_tab.dart';
 import '../tabs/finance_tab.dart';
-import '../tabs/training_tab.dart';
 import 'mode_selection_screen.dart';
 
 class _NavItem {
-  const _NavItem(this.id, this.label, this.icon, this.activeIcon, this.description);
+  const _NavItem(
+    this.id,
+    this.label,
+    this.icon,
+    this.activeIcon,
+    this.description,
+  );
   final String id;
   final String label;
   final IconData icon;
@@ -30,22 +34,55 @@ class _NavItem {
 }
 
 const _navItems = [
-  _NavItem('overview', 'Genel Bakış', Icons.space_dashboard_outlined, Icons.space_dashboard,
-      'Bugünün özeti, yaklaşan randevular ve risk uyarıları.'),
-  _NavItem('forms', 'Formlar', Icons.assignment_outlined, Icons.assignment,
-      'Değerlendirme formlarını oluşturun, düzenleyin ve doldurun.'),
-  _NavItem('clients', 'Danışanlar', Icons.people_outline, Icons.people,
-      'Danışan kartları, seans notları ve tedavi planları burada olacak.'),
-  _NavItem('appointments', 'Randevular', Icons.calendar_month_outlined, Icons.calendar_month,
-      'Takvim, randevu planlama ve tekrarlı randevular burada olacak.'),
-  _NavItem('tasks', 'Görevler', Icons.check_circle_outline, Icons.check_circle,
-      'Açık ve tamamlanan görevlerin takibi burada olacak.'),
-  _NavItem('results', 'Sonuçlar', Icons.bar_chart_outlined, Icons.bar_chart,
-      'Değerlendirme sonuçları, grafikler ve risk puanları burada olacak.'),
-  _NavItem('pdfs', 'PDF Kütüphanesi', Icons.folder_outlined, Icons.folder,
-      'Kategorili PDF arşivi ve doküman görüntüleme burada olacak.'),
-  _NavItem('settings', 'Ayarlar', Icons.settings_outlined, Icons.settings,
-      'Profil, veri yedeği, CSV dışa aktarım ve KVKK burada olacak.'),
+  _NavItem(
+    'overview',
+    'Genel Bakış',
+    Icons.space_dashboard_outlined,
+    Icons.space_dashboard,
+    'Bugünün özeti, yaklaşan randevular ve risk uyarıları.',
+  ),
+  _NavItem(
+    'forms',
+    'Formlar',
+    Icons.assignment_outlined,
+    Icons.assignment,
+    'Değerlendirme formlarını oluşturun, düzenleyin ve doldurun.',
+  ),
+  _NavItem(
+    'clients',
+    'Danışanlar',
+    Icons.people_outline,
+    Icons.people,
+    'Danışan kartları, seans notları ve tedavi planları burada olacak.',
+  ),
+  _NavItem(
+    'appointments',
+    'Randevular',
+    Icons.calendar_month_outlined,
+    Icons.calendar_month,
+    'Takvim, randevu planlama ve tekrarlı randevular burada olacak.',
+  ),
+  _NavItem(
+    'tasks',
+    'Görevler',
+    Icons.check_circle_outline,
+    Icons.check_circle,
+    'Açık ve tamamlanan görevlerin takibi burada olacak.',
+  ),
+  _NavItem(
+    'pdfs',
+    'PDF Kütüphanesi',
+    Icons.folder_outlined,
+    Icons.folder,
+    'Kategorili PDF arşivi ve doküman görüntüleme burada olacak.',
+  ),
+  _NavItem(
+    'settings',
+    'Ayarlar',
+    Icons.settings_outlined,
+    Icons.settings,
+    'Profil, veri yedeği, CSV dışa aktarım ve KVKK burada olacak.',
+  ),
 ];
 
 /// Ana kabuk — masaüstünde yan menü, mobilde alt menü.
@@ -66,9 +103,8 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   AppMode? get _selectedMode {
     final m = _u.appMode;
     if (m == 'commercial') return AppMode.commercial;
-    if (m == 'training') return AppMode.training;
     if (m == 'standard') return AppMode.standard;
-    return null;
+    return AppMode.standard;
   }
 
   void _setMode(AppMode m) {
@@ -78,6 +114,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     });
     widget.store.updateUser(_u);
   }
+
   Timer? _watchTimer;
   DateTime _lastActivity = DateTime.now();
   DateTime? _hiddenAt;
@@ -193,12 +230,15 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   AppBar _buildTopBar(BuildContext context, bool wide) {
     String modeName = 'Standart';
     if (_selectedMode == AppMode.commercial) modeName = 'Ticari';
-    if (_selectedMode == AppMode.training) modeName = 'Eğitim';
 
     return AppBar(
       title: Row(
         children: [
-          const Icon(Icons.monitor_heart_outlined, color: AppColors.primary, size: 22),
+          const Icon(
+            Icons.monitor_heart_outlined,
+            color: AppColors.primary,
+            size: 22,
+          ),
           const SizedBox(width: 8),
           const Text('MindTrack', style: TextStyle()),
           const SizedBox(width: 8),
@@ -208,7 +248,14 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
               color: AppColors.primarySoft,
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Text(modeName, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
+            child: Text(
+              modeName,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryDark,
+              ),
+            ),
           ),
         ],
       ),
@@ -227,24 +274,33 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                 CircleAvatar(
                   radius: 16,
                   backgroundColor: AppColors.primary,
-                  child: Text(_u.name.substring(0, 1).toUpperCase(),
-                      style: const TextStyle(
-                          fontSize: 13,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700)),
+                  child: Text(
+                    _u.name.substring(0, 1).toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_u.name,
-                        style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w700)),
+                    Text(
+                      _u.name,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     Text(
                       _u.clinic.isNotEmpty ? _u.clinic : _u.email,
                       style: const TextStyle(
-                          fontSize: 11.5, color: AppColors.muted),
+                        fontSize: 11.5,
+                        color: AppColors.muted,
+                      ),
                     ),
                   ],
                 ),
@@ -267,11 +323,19 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   }
 
   List<_NavItem> get _currentNavItems {
-    final List<_NavItem> items = List.from(_navItems.take(_navItems.length - 1));
+    final List<_NavItem> items = List.from(
+      _navItems.take(_navItems.length - 1),
+    );
     if (_selectedMode == AppMode.commercial) {
-      items.add(const _NavItem('finance', 'Muhasebe', Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, 'Ödeme takibi.'));
-    } else if (_selectedMode == AppMode.training) {
-      items.add(const _NavItem('training', 'Eğitim', Icons.school_outlined, Icons.school, 'Eğitim takibi.'));
+      items.add(
+        const _NavItem(
+          'finance',
+          'Muhasebe',
+          Icons.account_balance_wallet_outlined,
+          Icons.account_balance_wallet,
+          'Ödeme takibi.',
+        ),
+      );
     }
     items.add(_navItems.last); // Settings always last
     return items;
@@ -293,12 +357,15 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
               children: [
                 const Padding(
                   padding: EdgeInsets.fromLTRB(12, 4, 12, 8),
-                  child: Text('ANA MENÜ',
-                      style: TextStyle(
-                          fontSize: 11,
-                          letterSpacing: .08,
-                          color: AppColors.muted,
-                          fontWeight: FontWeight.w700)),
+                  child: Text(
+                    'ANA MENÜ',
+                    style: TextStyle(
+                      fontSize: 11,
+                      letterSpacing: .08,
+                      color: AppColors.muted,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
                 for (var i = 0; i < items.length; i++)
                   _sidebarItem(context, i, items[i]),
@@ -317,19 +384,30 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.shield_outlined, size: 16, color: AppColors.primaryDark),
+                    Icon(
+                      Icons.shield_outlined,
+                      size: 16,
+                      color: AppColors.primaryDark,
+                    ),
                     SizedBox(width: 6),
-                    Text('Gizlilik',
-                        style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.text)),
+                    Text(
+                      'Gizlilik',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                    ),
                   ],
                 ),
                 SizedBox(height: 6),
                 Text(
                   'Tüm hasta ve değerlendirme verileriniz yalnızca bu cihazda saklanır.',
-                  style: TextStyle(fontSize: 11.5, color: AppColors.muted, height: 1.5),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.muted,
+                    height: 1.5,
+                  ),
                 ),
               ],
             ),
@@ -365,9 +443,10 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
               child: Text(
                 item.label,
                 style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: active ? AppColors.primaryDark : AppColors.text2),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: active ? AppColors.primaryDark : AppColors.text2,
+                ),
               ),
             ),
           ],
@@ -389,7 +468,8 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              for (var i = 0; i < items.length; i++) _bottomItem(context, i, items[i]),
+              for (var i = 0; i < items.length; i++)
+                _bottomItem(context, i, items[i]),
             ],
           ),
         ),
@@ -417,21 +497,22 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
             ),
             const SizedBox(height: 3),
             Text(
-              item.label.length > 12 ? '${item.label.substring(0, 12)}…' : item.label,
+              item.label.length > 12
+                  ? '${item.label.substring(0, 12)}…'
+                  : item.label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontSize: 10,
-                  color: active ? AppColors.primary : AppColors.muted,
-                  fontWeight: active ? FontWeight.w700 : FontWeight.w500),
+                fontSize: 10,
+                color: active ? AppColors.primary : AppColors.muted,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
           ],
         ),
       ),
     );
   }
-
-
 
   void _goTab(String id) {
     final items = _currentNavItems;
@@ -446,23 +527,22 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       ClientsTab(data: widget.data, onNavigate: _goTab),
       AppointmentsTab(data: widget.data),
       TasksTab(data: widget.data),
-      ResultsTab(data: widget.data, onNavigate: _goTab),
       PdfsTab(data: widget.data),
     ];
 
     if (_selectedMode == AppMode.commercial) {
       views.add(FinanceTab(data: widget.data));
-    } else if (_selectedMode == AppMode.training) {
-      views.add(TrainingTab(data: widget.data));
     }
 
-    views.add(SettingsTab(
-      data: widget.data,
-      onProfileChanged: () => setState(() {}),
-      onLockRequest: _lock,
-      onNavigate: _goTab,
-      onLogout: _logout,
-    ));
+    views.add(
+      SettingsTab(
+        data: widget.data,
+        onProfileChanged: () => setState(() {}),
+        onLockRequest: _lock,
+        onNavigate: _goTab,
+        onLogout: _logout,
+      ),
+    );
 
     final safeIndex = _index.clamp(0, views.length - 1);
     return IndexedStack(index: safeIndex, children: views);

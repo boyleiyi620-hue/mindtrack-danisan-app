@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../../theme/app_theme.dart';
 
-enum AppMode { standard, commercial, training }
+enum AppMode { standard, commercial }
 
 class ModeSelectionScreen extends StatelessWidget {
   const ModeSelectionScreen({super.key, required this.onSelected});
@@ -18,10 +19,21 @@ class ModeSelectionScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.dashboard_customize_outlined, size: 64, color: AppColors.primary),
+                const Icon(
+                  Icons.dashboard_customize_outlined,
+                  size: 64,
+                  color: AppColors.primary,
+                ),
                 const SizedBox(height: 16),
-                Text('MindTrack', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
-                const Text('Lütfen devam etmek istediğiniz oturum modunu seçin.', textAlign: TextAlign.center),
+                Text(
+                  'MindTrack',
+                  style: Theme.of(context).textTheme.headlineMedium
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const Text(
+                  'Lütfen devam etmek istediğiniz oturum modunu seçin.',
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 32),
                 _modeCard(
                   context,
@@ -40,15 +52,6 @@ class ModeSelectionScreen extends StatelessWidget {
                   icon: Icons.account_balance_wallet_outlined,
                   color: Colors.amber.shade800,
                 ),
-                const SizedBox(height: 16),
-                _modeCard(
-                  context,
-                  mode: AppMode.training,
-                  title: 'Eğitim ve Gelişim',
-                  desc: 'Süpervizyon, eğitim ve sertifika takibi.',
-                  icon: Icons.school_outlined,
-                  color: Colors.indigo,
-                ),
               ],
             ),
           ),
@@ -57,7 +60,14 @@ class ModeSelectionScreen extends StatelessWidget {
     );
   }
 
-  Widget _modeCard(BuildContext context, {required AppMode mode, required String title, required String desc, required IconData icon, required Color color}) {
+  Widget _modeCard(
+    BuildContext context, {
+    required AppMode mode,
+    required String title,
+    required String desc,
+    required IconData icon,
+    required Color color,
+  }) {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -68,7 +78,10 @@ class ModeSelectionScreen extends StatelessWidget {
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: color.withValues(alpha: .1), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: .1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Icon(icon, color: color, size: 28),
               ),
               const SizedBox(width: 16),
@@ -76,9 +89,21 @@ class ModeSelectionScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 17,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text(desc, style: const TextStyle(fontSize: 13, color: AppColors.muted)),
+                    Text(
+                      desc,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.muted,
+                      ),
+                    ),
                   ],
                 ),
               ),

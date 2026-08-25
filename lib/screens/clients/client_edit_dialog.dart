@@ -98,12 +98,19 @@ class _ClientEditDialogState extends State<ClientEditDialog> {
     final psychologistId = FirebaseAuth.instance.currentUser?.uid;
     if (psychologistId == null || psychologistId.isEmpty) return '';
     try {
-      final linked = await FirebaseFirestore.instance
-          .collection('pairingCodes')
+      final collection = FirebaseFirestore.instance.collection('pairingCodes');
+      var linked = await collection
           .where('psychologistId', isEqualTo: psychologistId)
           .where('clientId', isEqualTo: client.id)
           .limit(1)
           .get();
+      if (linked.docs.isEmpty && client.email.trim().isNotEmpty) {
+        linked = await collection
+            .where('psychologistId', isEqualTo: psychologistId)
+            .where('clientEmail', isEqualTo: client.email.trim())
+            .limit(1)
+            .get();
+      }
       if (linked.docs.isEmpty) return '';
       final resolved =
           linked.docs.first.data()['clientUserId']?.toString() ?? '';
