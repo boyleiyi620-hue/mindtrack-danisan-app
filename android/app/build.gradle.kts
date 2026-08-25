@@ -6,6 +6,9 @@ plugins {
 
 android {
     namespace = "tr.mindtrack.app.danisan"
+    buildFeatures {
+        resValues = true
+    }
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -17,6 +20,21 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "tr.mindtrack.app.danisan"
+        // Danışan ve psikolog APK’ları ayrı kurulabilir; ikisi de aynı Firebase
+        // projesinin FlutterFire seçeneklerini kullanır.
+        flavorDimensions += "role"
+        productFlavors {
+            create("client") {
+                dimension = "role"
+                applicationId = "tr.mindtrack.app.danisan"
+                resValue("string", "app_name", "MindTrack Danışan")
+            }
+            create("psychologist") {
+                dimension = "role"
+                applicationId = "tr.mindtrack.app.psikolog"
+                resValue("string", "app_name", "MindTrack Psikolog")
+            }
+        }
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
