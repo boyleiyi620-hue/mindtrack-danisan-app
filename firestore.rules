@@ -40,8 +40,14 @@ service cloud.firestore {
       allow update: if isPsychologist(uid) ||
         (signedIn() && resource.data.clientFirebaseUid == request.auth.uid &&
          request.resource.data.clientFirebaseUid == request.auth.uid &&
-         request.resource.data.status == 'cancelled');
-      allow delete: if isPsychologist(uid);
+         request.resource.data.status == 'cancelled' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+           'status',
+           'cancelledBy',
+           'updatedAt'
+         ]));
+      allow delete: if isPsychologist(uid) ||
+        (signedIn() && resource.data.clientFirebaseUid == request.auth.uid);
     }
 
     match /psychologists/{uid}/tasks/{taskId} {

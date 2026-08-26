@@ -644,7 +644,8 @@ class ClientAppointments extends StatelessWidget {
     final date = _appointmentDate(data);
     final status = data['status']?.toString() ?? 'pending';
     final statusLabel = _appointmentStatusLabel(status);
-    final isPending = status == 'pending';
+    final canCancel =
+        status == 'pending' || status == 'approved' || status == 'planned';
     final color = status == 'approved' || status == 'planned'
         ? Colors.green
         : status == 'rejected' || status == 'cancelled'
@@ -660,12 +661,27 @@ class ClientAppointments extends StatelessWidget {
         ),
         title: Text(_formatDateTime(date)),
         subtitle: Text('Durum: $statusLabel'),
-        trailing: isPending
-            ? TextButton(
-                onPressed: () => _cancelRequest(context, doc.reference),
-                child: const Text('Randevuyu İptal Et'),
+        trailing: canCancel
+            ? Wrap(
+                spacing: 2,
+                children: [
+                  IconButton(
+                    tooltip: 'Randevuyu iptal et',
+                    onPressed: () => _cancelAppointment(context, doc.reference),
+                    icon: const Icon(Icons.event_busy_outlined),
+                  ),
+                  IconButton(
+                    tooltip: 'Randevuyu sil',
+                    onPressed: () => _deleteAppointment(context, doc.reference),
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+                ],
               )
-            : null,
+            : IconButton(
+                tooltip: 'Randevuyu sil',
+                onPressed: () => _deleteAppointment(context, doc.reference),
+                icon: const Icon(Icons.delete_outline),
+              ),
       ),
     );
   }
@@ -711,16 +727,16 @@ class ClientAppointments extends StatelessWidget {
         });
   }
 
-  Future<void> _cancelRequest(
+  Future<void> _cancelAppointment(
     BuildContext context,
     DocumentReference<Map<String, dynamic>> ref,
   ) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Randevu talebini iptal et'),
+        title: const Text('Randevuyu iptal et'),
         content: const Text(
-          'Bu randevu talebini iptal etmek istediğinize emin misiniz?',
+          'Bu randevu iptal edilecek ve psikolog tarafında da iptal olarak görünecek. Devam edilsin mi?',
         ),
         actions: [
           TextButton(
@@ -729,16 +745,73 @@ class ClientAppointments extends StatelessWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Evet, İptal Et'),
+            child: const Text('İptal Et'),
           ),
         ],
       ),
     );
-    if (ok == true) {
-      await ref.update({'status': 'cancelled'});
+    if (ok != true) return;
+    try {
+      await ref.update({
+        'status': 'cancelled',
+        'cancelledBy': 'client',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Randevu iptal edildi.')));
+      }
+    } on FirebaseException catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Randevu iptal edilemedi: ${error.message ?? error.code}',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteAppointment(
+    BuildContext context,
+    DocumentReference<Map<String, dynamic>> ref,
+  ) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Randevuyu sil'),
+        content: const Text(
+          'Bu randevu listenizden ve psikolog tarafındaki ortak kayıttan silinecek. Bu işlem geri alınamaz.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Sil'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.delete();
       if (context.mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Talep iptal edildi.')));
+            .showSnackBar(const SnackBar(content: Text('Randevu silindi.')));
+      }
+    } on FirebaseException catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Randevu silinemedi: ${error.message ?? error.code}'),
+          ),
+        );
       }
     }
   }

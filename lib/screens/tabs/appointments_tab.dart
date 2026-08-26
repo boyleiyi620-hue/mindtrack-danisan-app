@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -25,8 +27,100 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
   String _weekStart = mondayOfIso(todayIso());
   String _q = '';
   String _filter = 'all';
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _remoteAppointmentsSubscription;
 
   AppData get _d => widget.data.data;
+
+  @override
+  void initState() {
+    super.initState();
+    _startRemoteAppointmentSync();
+  }
+
+  @override
+  void dispose() {
+    _remoteAppointmentsSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _startRemoteAppointmentSync() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return;
+    _remoteAppointmentsSubscription = FirebaseFirestore.instance
+        .collection('psychologists')
+        .doc(uid)
+        .collection('appointments')
+        .snapshots()
+        .listen(_applyRemoteAppointments, onError: (_) {});
+  }
+
+  void _applyRemoteAppointments(QuerySnapshot<Map<String, dynamic>> snapshot) {
+    var changed = false;
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final linkedId = data['linkedAppointmentId']?.toString() ?? '';
+      final local = _d.appointments.cast<Appointment?>().firstWhere(
+        (appointment) =>
+            appointment != null &&
+            ((linkedId.isNotEmpty && appointment.id == linkedId) ||
+                appointment.notes == 'request:${doc.id}'),
+        orElse: () => null,
+      );
+      if (local == null) continue;
+
+      final remoteStatus = data['status']?.toString() ?? '';
+      final localStatus = remoteStatus == 'approved' ? 'planned' : remoteStatus;
+      if (const {
+        'planned',
+        'done',
+        'cancelled',
+        'noshow',
+      }.contains(localStatus)) {
+        if (local.status != localStatus) {
+          local.status = localStatus;
+          changed = true;
+        }
+      }
+
+      final remoteDate = _remoteAppointmentDate(data['date']);
+      if (remoteDate != null) {
+        final date = isoDate(remoteDate);
+        final time =
+            '${remoteDate.hour.toString().padLeft(2, '0')}:${remoteDate.minute.toString().padLeft(2, '0')}';
+        if (local.date != date || local.time != time) {
+          local.date = date;
+          local.time = time;
+          changed = true;
+        }
+      }
+    }
+
+    final linkedRequestIds = snapshot.docs.map((doc) => doc.id).toSet();
+    for (final local in [..._d.appointments]) {
+      if (!local.notes.startsWith('request:')) continue;
+      final requestId = local.notes.substring('request:'.length).trim();
+      if (requestId.isNotEmpty && !linkedRequestIds.contains(requestId)) {
+        _d.appointments.removeWhere(
+          (appointment) => appointment.id == local.id,
+        );
+        changed = true;
+      }
+    }
+
+    if (!changed) return;
+    widget.data.save();
+    if (mounted) setState(() {});
+  }
+
+  DateTime? _remoteAppointmentDate(dynamic raw) {
+    if (raw is Timestamp) return raw.toDate();
+    if (raw is DateTime) return raw;
+    if (raw is String) return DateTime.tryParse(raw);
+    if (raw is num) return DateTime.fromMillisecondsSinceEpoch(raw.toInt());
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1020,7 +1114,9 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
       deleteWhole = false;
     }
     if (deleteWhole) {
-      await syncRemoteAppointment(a, statusOverride: 'cancelled');
+      for (final item in group!) {
+        await deleteRemoteAppointment(item);
+      }
       _d.appointments.removeWhere((x) => x.repeatGroup == a.repeatGroup);
       messenger
         ..hideCurrentSnackBar()
@@ -1033,7 +1129,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
           ),
         );
     } else {
-      await syncRemoteAppointment(a, statusOverride: 'cancelled');
+      await deleteRemoteAppointment(a);
       _d.appointments.removeWhere((x) => x.id == a.id);
       messenger
         ..hideCurrentSnackBar()
@@ -1069,32 +1165,49 @@ Color _appointmentStatusColor(String status) {
   }
 }
 
+Future<DocumentReference<Map<String, dynamic>>?> _remoteAppointmentRef(
+  Appointment appointment,
+) async {
+  final psychologistId = FirebaseAuth.instance.currentUser?.uid;
+  if (psychologistId == null || psychologistId.isEmpty) return null;
+  final notes = appointment.notes;
+  if (!notes.startsWith('request:')) return null;
+  final requestId = notes.substring('request:'.length).trim();
+  if (requestId.isEmpty) return null;
+  return FirebaseFirestore.instance
+      .collection('psychologists')
+      .doc(psychologistId)
+      .collection('appointments')
+      .doc(requestId);
+}
+
 Future<void> syncRemoteAppointment(
   Appointment appointment, {
   String? statusOverride,
 }) async {
-  final psychologistId = FirebaseAuth.instance.currentUser?.uid;
-  if (psychologistId == null || psychologistId.isEmpty) return;
-  final notes = appointment.notes;
-  if (!notes.startsWith('request:')) return;
-  final requestId = notes.substring('request:'.length).trim();
-  if (requestId.isEmpty) return;
   try {
-    await FirebaseFirestore.instance
-        .collection('psychologists')
-        .doc(psychologistId)
-        .collection('appointments')
-        .doc(requestId)
-        .update({
-          'status': statusOverride ?? appointment.status,
-          'date': Timestamp.fromDate(
-            DateTime.parse('${appointment.date} ${appointment.time}:00'),
-          ),
-          'linkedAppointmentId': appointment.id,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+    final ref = await _remoteAppointmentRef(appointment);
+    if (ref == null) return;
+    await ref.update({
+      'status': statusOverride ?? appointment.status,
+      'date': Timestamp.fromDate(
+        DateTime.parse('${appointment.date} ${appointment.time}:00'),
+      ),
+      'linkedAppointmentId': appointment.id,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   } catch (_) {
     // Yerel kayıt korunur; çevrim içi kayıt sonraki işlemde güncellenebilir.
+  }
+}
+
+Future<void> deleteRemoteAppointment(Appointment appointment) async {
+  try {
+    final ref = await _remoteAppointmentRef(appointment);
+    if (ref == null) return;
+    await ref.delete();
+  } catch (_) {
+    // Yerel silme korunur; uzak kayıt sonraki senkron adımında temizlenebilir.
   }
 }
 
